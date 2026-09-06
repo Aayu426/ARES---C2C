@@ -120,19 +120,19 @@ class Engine:
             return
         node = self.nodes[node_id]
         if kind == "tel":
-            await self._on_telemetry(node, msg)
+            await self._on_telemetry(node, msg, source)
         elif kind == "wit":
-            await self._on_witness_msg(node, msg)
+            await self._on_witness_msg(node, msg, source)
         elif kind == "resp":
             await self.on_challenge_response(node, msg)   # Phase 3
 
-    async def _on_telemetry(self, node: NodeRecord, msg: dict) -> None:
+    async def _on_telemetry(self, node: NodeRecord, msg: dict, source: str = "") -> None:
         ok = verify(self.keys[node.node_id], telemetry_canonical(msg), msg.get("hmac"))
         replay = ok and self._is_replay(node, msg)
         self._touch(node, msg, ok and not replay)
         self.store.add_telemetry(msg, ok and not replay)
         if not ok:
-            self._identity_failure(node, "invalid signature on telemetry frame")
+            self._identity_failure(node, "invalid signature on telemetry frame", msg, source)
             return
         if replay:
             self._replay_failure(node, msg)
@@ -145,12 +145,12 @@ class Engine:
             self.mqtt_echo(msg)   # let a network attacker sniff genuine signed frames (echo mode)
         self._publish_node(node)
 
-    async def _on_witness_msg(self, node: NodeRecord, msg: dict) -> None:
+    async def _on_witness_msg(self, node: NodeRecord, msg: dict, source: str = "") -> None:
         ok = verify(self.keys[node.node_id], witness_canonical(msg), msg.get("hmac"))
         replay = ok and self._is_replay(node, msg)
         self._touch(node, msg, ok and not replay)
         if not ok:
-            self._identity_failure(node, "invalid signature on witness message")
+            self._identity_failure(node, "invalid signature on witness message", msg, source)
             return
         if replay:
             self._replay_failure(node, msg)
@@ -195,11 +195,26 @@ class Engine:
             node.hmac_failures += 1
             node.bad_this_tick += 1
 
-    def _identity_failure(self, node: NodeRecord, detail: str) -> None:
+    def _identity_failure(self, node: NodeRecord, detail: str, msg: dict | None = None, source: str = "") -> None:
         node.trust.bad_hmac()
-        node.last_reason = detail
-        self.bus.publish({"e": "identity_failure", "node_id": node.node_id, "detail": detail})
-        self._apply_state(node, detail)
+        attacker = source.startswith("mqtt-attacker") or source == "attacker"
+        where = " over the network" if attacker else ""
+        node.last_reason = f"{detail}{where}"
+        # surface the value the forged frame TRIED to push, so the dashboard shows a
+        # rejected ghost reading next to the real one. The real reading is never overwritten.
+        attempted = {}
+        if msg:
+            for claim in ("motion", "water", "temp"):
+                if claim in msg:
+                    attempted[claim] = msg[claim]
+            if msg.get("claim") in ("motion", "water"):
+                attempted[msg["claim"]] = msg.get("value")
+        self.bus.publish({"e": "identity_failure", "node_id": node.node_id, "detail": node.last_reason,
+                          "attempted": attempted, "source": source or "serial"})
+        for claim, value in attempted.items():
+            self.bus.publish({"e": "witness", "node_id": node.node_id, "claim": claim,
+                              "value": value, "conf": 1.0, "rejected": "forged signature", "source": source or "serial"})
+        self._apply_state(node, node.last_reason)
         self._publish_node(node, force=True)
 
     async def on_witness(self, node: NodeRecord, claim: str, value: float, conf: float, hmac_ok: bool) -> None:

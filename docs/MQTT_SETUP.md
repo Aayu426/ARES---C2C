@@ -13,7 +13,7 @@ Turning it on cannot affect the honest serial path.
 ## 1. Run the broker
 
 Mosquitto is a broker plus CLI tools. Run the broker on whichever PC is easiest; the
-attacker PixC usually already has it. Allow anonymous connections on the LAN:
+attacker PC usually already has it. Allow anonymous connections on the LAN:
 
 `mosquitto.conf`
 ```
@@ -53,10 +53,13 @@ python attacks\mqtt_attack.py --broker <BROKER_IP> --node A --mode replay
 
 What ARES does, visible live on the dashboard:
 
-| Attack | Why it fails |
-|--------|--------------|
-| spoof  | forged frame has no valid HMAC -> identity 0 -> node A to SHADOW |
-| replay | signature is genuine but the sequence number is stale -> rejected -> SHADOW |
+| Attack | Why it fails | What shows on the dashboard |
+|--------|--------------|------------------------------|
+| spoof  | forged frame has no valid HMAC -> identity 0 -> node A to SHADOW | the forged value appears as a **REJECTED** ghost reading (source `mqtt-attacker`); the real reading is untouched; trust bar collapses; node greys out |
+| replay | signature is genuine but the sequence number is stale -> rejected -> SHADOW | `replay_rejected` event; node to SHADOW |
+
+The point to say out loud: the attacker *did* push a value over the network, ARES showed
+it and refused it. The trusted reading never changed. **Authentic beats authenticated.**
 
 In both cases node A's real serial telemetry keeps arriving honestly; the attack rides in
 over the network and is caught without touching the board. This is the same outcome as the
