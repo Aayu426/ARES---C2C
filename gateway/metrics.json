@@ -1,0 +1,15 @@
+{
+  "trials": 20,
+  "sim_interval_s": 0.5,
+  "detection_latency_s": {
+    "to_suspicious_median": 2.66,
+    "to_shadow_median": 4.43,
+    "to_shadow_p95": 5.14
+  },
+  "catch_rate": 1.0,
+  "honest_run_s": 120,
+  "false_positive_seconds": 0,
+  "false_positive_rate_per_hour": 0.0,
+  "false_positive_reasons": {},
+  "measured_at": "2026-09-06 16:43:39"
+}
