@@ -17,6 +17,7 @@ import json, os
 from .store import Store
 from .transports.base import Transport
 from .transports.http_transport import HttpTransport, MultiTransport
+from .transports.mqtt_ingress import MqttIngress
 from .transports.serial_transport import SerialTransport
 from .transports.sim_transport import SimTransport
 
@@ -35,6 +36,7 @@ class EnvBody(BaseModel):
 
 def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str = "keys.json",
                db_path: str = "ares.db", sim_interval: float = 1.0, known_fw_path: str = "known_fw.json",
+               mqtt_host: str = "", mqtt_port: int = 1883, mqtt_echo: bool = False,
                **challenge_opts) -> FastAPI:
     keys = load_keys(keys_path)
     known_fw = load_known_fw(known_fw_path)
@@ -47,13 +49,18 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
         http_t = HttpTransport(["C", "WEBCAM"])
         transport = MultiTransport({"A": serial_t, "B": serial_t, "C": http_t, "WEBCAM": http_t})
     engine = Engine(transport, store, bus, keys, mode, known_fw=known_fw, **challenge_opts)
+    mqtt_ingress = MqttIngress(engine, mqtt_host, mqtt_port, mqtt_echo) if mqtt_host else None
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI):
         await transport.start(asyncio.get_running_loop())
         await engine.start()
+        if mqtt_ingress is not None:
+            await mqtt_ingress.start(asyncio.get_running_loop())
         print(f"[ares] gateway up in {mode} mode")
         yield
+        if mqtt_ingress is not None:
+            await mqtt_ingress.stop()
         await engine.stop()
         await transport.stop()
 
@@ -65,7 +72,8 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
 
     @app.get("/health")
     async def health():
-        return {"ok": True, "mode": mode, "nodes": transport.nodes()}
+        return {"ok": True, "mode": mode, "nodes": transport.nodes(),
+                "mqtt": {"host": mqtt_host, "connected": mqtt_ingress.connected} if mqtt_ingress else None}
 
     @app.get("/state")
     async def state():

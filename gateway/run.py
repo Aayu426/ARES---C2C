@@ -24,13 +24,17 @@ def main() -> None:
     parser.add_argument("--keys", default="keys.json")
     parser.add_argument("--db", default="ares.db")
     parser.add_argument("--sim-interval", type=float, default=1.0)
+    parser.add_argument("--mqtt-host", default="", help="broker IP to subscribe to for injected attack frames (e.g. the attacker PC)")
+    parser.add_argument("--mqtt-port", type=int, default=1883)
+    parser.add_argument("--mqtt-echo", action="store_true", help="republish honest frames to ares/<node>/telemetry so an attacker can capture and replay them")
     args = parser.parse_args()
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
     sys.stdout.reconfigure(line_buffering=True)   # logs reach files and pipes immediately
 
     ports = [p.strip() for p in args.ports.split(",") if p.strip()]
     app = create_app(mode=args.mode, ports=ports, keys_path=args.keys, db_path=args.db,
-                     sim_interval=args.sim_interval)
+                     sim_interval=args.sim_interval, mqtt_host=args.mqtt_host,
+                     mqtt_port=args.mqtt_port, mqtt_echo=args.mqtt_echo)
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 
 

@@ -96,6 +96,7 @@ class Engine:
         self._tick_task: asyncio.Task | None = None
         self._last_snapshot: dict[str, str] = {}
         self._incident_n = 0
+        self.mqtt_echo = None   # set by MqttIngress when --mqtt-echo is on
         self.challenges = ChallengeEngine(self, known_fw or {}, **challenge_opts)
         transport.on_message(self.on_message)
 
@@ -140,6 +141,8 @@ class Engine:
             if claim in msg:
                 node.last[claim] = msg[claim]
                 await self.on_witness(node, claim, float(msg[claim]), 1.0, ok)
+        if self.mqtt_echo is not None and str(msg.get("hmac")) != "":
+            self.mqtt_echo(msg)   # let a network attacker sniff genuine signed frames (echo mode)
         self._publish_node(node)
 
     async def _on_witness_msg(self, node: NodeRecord, msg: dict) -> None:
