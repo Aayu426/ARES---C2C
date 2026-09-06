@@ -91,14 +91,20 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
     @app.post("/inbox")
     async def inbox(msg: dict):
         """Vision service posts challenge responses (and may post witnesses) here."""
-        if msg.get("t") not in ("wit", "resp"):
-            raise HTTPException(400, "expected t == 'wit' or 'resp'")
+        if msg.get("t") not in ("wit", "resp", "tel"):
+            raise HTTPException(400, "expected t == 'wit', 'resp' or 'tel'")
         http_t = transport.child(HttpTransport) if isinstance(transport, MultiTransport) else None
         if http_t is not None:
             await http_t.inbound(msg)
         else:
             await engine.on_message(msg, "http")
         return {"ok": True}
+
+    @app.get("/capture/{node_id}")
+    async def capture(node_id: str, n: int = 5):
+        """Last valid raw frames from a node, signatures included: what an attacker on the
+        wire would have captured. Used by attacks/replay.py."""
+        return store.recent_telemetry(node_id, n)
 
     @app.post("/attack")
     async def attack(body: AttackBody):

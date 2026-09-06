@@ -80,6 +80,12 @@ class Store:
                             received_at=time.time(), payload=json.dumps(msg), hmac_ok=hmac_ok))
             s.commit()
 
+    def recent_telemetry(self, node_id: str, limit: int = 5) -> list[dict]:
+        with self.Session() as s:
+            rows = (s.query(Telemetry).filter_by(node_id=node_id, hmac_ok=True)
+                    .order_by(Telemetry.received_at.desc()).limit(limit).all())
+            return [json.loads(r.payload) for r in reversed(rows)]
+
     def add_witness(self, node_id: str, claim: str, value: float, conf: float, hmac_ok: bool) -> None:
         with self.Session() as s:
             s.add(WitnessRow(node_id=node_id, claim=claim, value=value, conf=conf,

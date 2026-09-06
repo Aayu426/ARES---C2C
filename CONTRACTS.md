@@ -166,6 +166,7 @@ Each component keeps a `debt` in 0–100. `component = 100 - debt`.
 | Event                                   | Effect                                  |
 |-----------------------------------------|-----------------------------------------|
 | bad HMAC on a frame                     | identity debt = 100 immediately; counts as a failed challenge (SHADOW for 60 s) |
+| replayed frame (seq not advancing; a reboot with seq near 1 and a reset clock is allowed) | same as bad HMAC |
 | identity challenge failed / timed out   | identity debt = 100                     |
 | integrity challenge failed              | integrity debt = 100                    |
 | outlier on a claim vs other witnesses   | consistency debt += 30 per cycle (after one free cycle) |
@@ -259,6 +260,7 @@ cannot suppress a claim two other witnesses can see.
 |--------|----------------------------|-----------------------------------------------------------------|
 | POST   | `/witness`                 | a §3.2 message (vision service → gateway)                       |
 | GET    | `/outbox/{node}`           | pending `chal` / `atk` messages for an HTTP node (drained on read) |
+| GET    | `/capture/{node}?n=5`      | last valid raw frames of a node, signatures included (what a wire-tap sees; used by `attacks/replay.py`) |
 | POST   | `/inbox`                   | `resp` (or `wit`) from an HTTP node                             |
 | POST   | `/attack`                  | `{"type":"suppress_motion"\|"suppress_water"\|"spoof"\|"replay"\|"inject"\|"restore","target":"A"\|"B"}` |
 | GET    | `/state`                   | full snapshot: nodes, claims, incidents (dashboard initial load)|
@@ -266,8 +268,11 @@ cannot suppress a claim two other witnesses can see.
 | GET    | `/metrics`                 | output of the 20-run numbers script                             |
 
 `/attack` in `sim` mode performs the attack inside the simulator; in `serial` mode it
-sends the §3.6 command to the target board (spoof and replay are laptop-side scripts
-either way). Every attack is idempotent; `restore` always returns to baseline.
+sends the §3.6 command to the target board. Real boards cannot impersonate themselves,
+so in `serial` mode `spoof` and `replay` are performed by the gateway acting as the
+attacker (forged frames; captured frames re-sent). `attacks/spoof.py` and
+`attacks/replay.py` do the same from a separate laptop through `/inbox`, for a judge
+who wants to see the attack come from outside. Every attack is idempotent; `restore` always returns to baseline.
 
 ### 8.2 WebSocket `/ws` events (gateway → dashboard)
 

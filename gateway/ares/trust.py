@@ -60,20 +60,27 @@ class TrustVector:
 
     # ---- evidence against ----
 
+    def _hard_failure(self) -> None:
+        # any hard failure ends a recovery in progress: restore must be pressed again
+        self.last_failed_challenge = time.time()
+        self.recovery_passed = 0
+        self.recovering = False
+
     def bad_hmac(self) -> None:
         self._add("identity", DEBT_BAD_HMAC)
-        self.last_failed_challenge = time.time()   # an impostor stays in SHADOW like a failed challenge
-        self.recovery_passed = 0
+        self._hard_failure()   # an impostor stays in SHADOW like a failed challenge
+
+    def replayed(self) -> None:
+        """A captured frame re-sent later: same debt and shadow lock as a bad signature."""
+        self.bad_hmac()
 
     def identity_failed(self) -> None:
         self._add("identity", DEBT_IDENTITY_FAIL)
-        self.last_failed_challenge = time.time()
-        self.recovery_passed = 0
+        self._hard_failure()
 
     def integrity_failed(self) -> None:
         self._add("integrity", DEBT_INTEGRITY_FAIL)
-        self.last_failed_challenge = time.time()
-        self.recovery_passed = 0
+        self._hard_failure()
 
     def outlier(self) -> None:
         self._add("consistency", DEBT_OUTLIER)

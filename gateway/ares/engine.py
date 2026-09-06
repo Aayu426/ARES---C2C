@@ -54,6 +54,7 @@ class NodeRecord:
         self.trust = TrustVector()
         self.last_seen: float | None = None
         self.last_seq: int | None = None
+        self.last_ts: float | None = None
         self.last: dict = {}                       # last raw values shown on the dashboard
         self.latest: dict[str, tuple[float, float, float]] = {}   # claim -> (value, conf, at) accepted readings
         self.disagree_cycles: dict[str, int] = {}  # claim -> consecutive cycles as outlier
@@ -124,10 +125,14 @@ class Engine:
 
     async def _on_telemetry(self, node: NodeRecord, msg: dict) -> None:
         ok = verify(self.keys[node.node_id], telemetry_canonical(msg), msg.get("hmac"))
-        self._touch(node, msg, ok)
-        self.store.add_telemetry(msg, ok)
+        replay = ok and self._is_replay(node, msg)
+        self._touch(node, msg, ok and not replay)
+        self.store.add_telemetry(msg, ok and not replay)
         if not ok:
             self._identity_failure(node, "invalid signature on telemetry frame")
+            return
+        if replay:
+            self._replay_failure(node, msg)
             return
         for claim in ("motion", "water", "temp"):
             if claim in msg:
@@ -137,9 +142,13 @@ class Engine:
 
     async def _on_witness_msg(self, node: NodeRecord, msg: dict) -> None:
         ok = verify(self.keys[node.node_id], witness_canonical(msg), msg.get("hmac"))
-        self._touch(node, msg, ok)
+        replay = ok and self._is_replay(node, msg)
+        self._touch(node, msg, ok and not replay)
         if not ok:
             self._identity_failure(node, "invalid signature on witness message")
+            return
+        if replay:
+            self._replay_failure(node, msg)
             return
         claim = msg.get("claim")
         if claim not in VOTED_CLAIMS:
@@ -148,12 +157,33 @@ class Engine:
         await self.on_witness(node, claim, float(msg.get("value", 0)), float(msg.get("conf", 1.0)), ok)
         self._publish_node(node)
 
+    def _is_replay(self, node: NodeRecord, msg: dict) -> bool:
+        """Sequence must advance. A reboot (seq restarts near 1 with a small millis clock)
+        is allowed; anything else that goes backwards is a captured frame re-sent."""
+        seq, ts = msg.get("seq"), msg.get("ts")
+        if not isinstance(seq, int) or node.last_seq is None:
+            return False
+        if seq > node.last_seq:
+            return False
+        rebooted = seq <= 3 and isinstance(ts, (int, float)) and isinstance(node.last_ts, (int, float)) and ts < node.last_ts
+        return not rebooted
+
+    def _replay_failure(self, node: NodeRecord, msg: dict) -> None:
+        node.trust.replayed()
+        node.last_reason = f"replayed frame rejected: seq {msg.get('seq')} already seen (last {node.last_seq})"
+        self.bus.publish({"e": "replay_rejected", "node_id": node.node_id, "seq": msg.get("seq"), "detail": node.last_reason})
+        self.bus.publish({"e": "incident", "id": f"rep-{uuid.uuid4().hex[:6]}", "claim": "identity",
+                          "summary": f"{node.node_id}: {node.last_reason}"})
+        self._apply_state(node, node.last_reason)
+        self._publish_node(node, force=True)
+
     def _touch(self, node: NodeRecord, msg: dict, ok: bool) -> None:
         node.last_seen = time.time()
         node.frames += 1
-        seq = msg.get("seq")
-        if isinstance(seq, int):
+        seq, ts = msg.get("seq"), msg.get("ts")
+        if ok and isinstance(seq, int):
             node.last_seq = seq
+            node.last_ts = ts if isinstance(ts, (int, float)) else node.last_ts
         if ok:
             node.good_this_tick += 1
         else:
@@ -341,8 +371,28 @@ class Engine:
                     self._publish_node(n, force=True)
             reached = [n for n in self.nodes if await self.transport.send(n, msg)]
             return f"restore sent to {', '.join(reached) or 'nobody'}"
+        if mode in ("spoof", "replay") and self.mode != "sim":
+            # real boards cannot impersonate themselves: the gateway plays the attacker
+            return await self._inject_attack(mode, node_id)
         sent = await self.transport.send(node_id, msg)
         return f"{mode} sent to {node_id}" if sent else f"{node_id} unreachable"
+
+    async def _inject_attack(self, mode: str, node_id: str) -> str:
+        node = self.nodes[node_id]
+        if mode == "spoof":
+            for i in range(3):
+                seq = (node.last_seq or 0) + 1 + i
+                forged = {"t": "tel", "node_id": node_id, "seq": seq, "ts": int(time.time() * 1000)}
+                forged.update({"motion": 1} if node_id == "A" else {"water": 1})
+                forged["hmac"] = "0" * 64
+                await self.on_message(forged, "attacker")
+            return f"3 forged frames injected as {node_id} without its key"
+        frames = self.store.recent_telemetry(node_id, 5)
+        if not frames:
+            return f"no captured frames for {node_id} yet"
+        for f in frames:
+            await self.on_message(dict(f), "attacker")
+        return f"{len(frames)} captured frames replayed as {node_id}"
 
     def state(self) -> dict:
         return {"mode": self.mode, "nodes": {n: r.snapshot() for n, r in self.nodes.items()},
