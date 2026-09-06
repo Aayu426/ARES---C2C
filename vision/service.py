@@ -29,7 +29,7 @@ import numpy as np
 import requests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MIN_PERSON_CONF = 0.5
+MIN_PERSON_CONF = 0.4
 WATER_BLUE_FRACTION = 0.08
 REPORT_EVERY = 2.0
 MOVE_PIXELS = 12        # centroid shift that counts as movement
@@ -80,14 +80,14 @@ class Detectors:
         local = os.path.join(HERE, "yolov8n.pt")
         self.model = YOLO(local if os.path.exists(local) else "yolov8n.pt")   # downloads on first run
 
-    def person(self, frame) -> tuple[int, float, tuple[float, float] | None]:
-        """(present, confidence, centroid of the most confident person or None)"""
+    def person(self, frame) -> tuple[int, float, tuple[float, float, float, float] | None]:
+        """(present, confidence, bounding box (x1,y1,x2,y2) of the most confident person)"""
         res = self.model(frame, classes=[0], conf=MIN_PERSON_CONF, verbose=False, imgsz=416)[0]
         if len(res.boxes) == 0:
             return 0, 0.9, None
         i = int(res.boxes.conf.argmax())
         x1, y1, x2, y2 = res.boxes.xyxy[i].tolist()
-        return 1, float(res.boxes.conf[i]), ((x1 + x2) / 2, (y1 + y2) / 2)
+        return 1, float(res.boxes.conf[i]), (x1, y1, x2, y2)
 
     @staticmethod
     def water(frame, roi: np.ndarray | None) -> tuple[int, float]:
@@ -162,6 +162,22 @@ class Witness:
         self.post("/witness", msg)
         self.last_sent[claim] = (value, now)
 
+    def _overlay(self, frame, present, pconf, box, motion, water, wconf) -> None:
+        """Draw the detection on the frame so the --show window shows what YOLO sees."""
+        if present and box is not None:
+            x1, y1, x2, y2 = (int(v) for v in box)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 220, 0), 2)
+            cv2.putText(frame, f"PERSON {pconf * 100:.0f}%", (x1, max(20, y1 - 8)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 220, 0), 2)
+        if self.roi is not None:
+            colour = (60, 60, 220) if water else (150, 150, 150)
+            cv2.polylines(frame, [self.roi.astype(np.int32)], True, colour, 2)
+        banner = f"{self.node_id}  MOTION={motion}"
+        if wconf >= 0.6:
+            banner += f"  WATER={water}"
+        cv2.rectangle(frame, (0, 0), (frame.shape[1], 26), (0, 0, 0), -1)
+        cv2.putText(frame, banner, (8, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+
     def step(self) -> None:
         if self.cap is None:
             return
@@ -170,23 +186,17 @@ class Witness:
             time.sleep(0.2)
             return
         self.frame = frame
-        present, pconf, centroid = self.det.person(frame)
+        present, pconf, box = self.det.person(frame)
         water, wconf = self.det.water(frame, self.roi)
-        # motion = a person who moved recently; a person standing still is not motion,
-        # which is exactly what the PIR on node A measures
+        centroid = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2) if box else None
+        # motion = a person is present (or was in the last few seconds). This corroborates
+        # the PIR: whenever the camera sees a person, its motion witness is 1.
         now = time.time()
-        if present and centroid is not None:
-            if self.last_centroid is not None:
-                dx = centroid[0] - self.last_centroid[0]
-                dy = centroid[1] - self.last_centroid[1]
-                if (dx * dx + dy * dy) ** 0.5 >= MOVE_PIXELS:
-                    self.last_move_at = now
-            else:
-                self.last_move_at = now      # a person appearing counts as movement
-            self.last_centroid = centroid
-        else:
-            self.last_centroid = None
-        motion = 1 if now - self.last_move_at < MOTION_HOLD else 0
+        if present:
+            self.last_move_at = now
+        self.last_centroid = centroid
+        motion = 1 if (present or now - self.last_move_at < MOTION_HOLD) else 0
+        self._overlay(frame, present, pconf, box, motion, water, wconf)
         self.send("motion", motion, pconf if present else 0.9)
         if wconf >= 0.6:
             self.send("water", water, wconf)

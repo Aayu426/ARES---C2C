@@ -47,7 +47,38 @@ function NodeCard({ sensorType, node }) {
   let readings = [];
 
   switch (sensorType) {
-    case "pir": {
+    case "camera": {
+      title = "CAMERA WITNESS";
+      subtitle = node.hardware || `NODE ${node.node_id}`;
+      PrimaryIcon = Activity;
+      const motionVal = node.last?.motion;
+      const waterVal = node.last?.water;
+      const isMotion = motionVal === 1 || motionVal === true;
+      const isWater = waterVal === 1 || waterVal === true;
+      readings = [
+        {
+          icon: <Activity size={15} />,
+          label: "PERSON (MOTION)",
+          value: isMotion ? "DETECTED" : "CLEAR",
+          highlight: isMotion ? "text-amber" : "text-green",
+        },
+        {
+          icon: <Droplets size={15} />,
+          label: "WATER (VISION)",
+          value: isWater ? "DETECTED" : "CLEAR",
+          highlight: isWater ? "text-blue" : "text-green",
+        },
+        {
+          icon: <Cpu size={15} />,
+          label: "WITNESS ROLE",
+          value: "YOLO VISION",
+        },
+      ];
+      break;
+    }
+
+    case "pir":
+    case "motion": {
       title = "PIR / MOTION SENSOR";
       subtitle = `NODE ${node.node_id} · ESP32 #1`;
       PrimaryIcon = Activity;
