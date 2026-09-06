@@ -152,12 +152,12 @@ Each component keeps a `debt` in 0–100. `component = 100 - debt`.
 
 | Event                                   | Effect                                  |
 |-----------------------------------------|-----------------------------------------|
-| bad HMAC on a frame                     | identity debt = 100 immediately         |
+| bad HMAC on a frame                     | identity debt = 100 immediately; counts as a failed challenge (SHADOW for 60 s) |
 | identity challenge failed / timed out   | identity debt = 100                     |
 | integrity challenge failed              | integrity debt = 100                    |
-| outlier on a claim vs other witnesses   | consistency debt += 25 per cycle        |
+| outlier on a claim vs other witnesses   | consistency debt += 30 per cycle (after one free cycle) |
 | physics rule violated                   | consistency debt += 40                  |
-| clean cycle (agrees, HMAC ok)           | every debt -= 2 (repays slowly)         |
+| clean cycle (≥1 valid frame, no bad frame, not an outlier) | every debt -= 2 (repays slowly) |
 | challenge passed                        | that component's debt -= 20             |
 
 Debt never goes below 0 or above 100. **Nothing resets instantly**; recovery is earned.
@@ -166,8 +166,8 @@ Debt never goes below 0 or above 100. **Nothing resets instantly**; recovery is 
 
 | State        | Rule                                                                   |
 |--------------|------------------------------------------------------------------------|
-| `TRUSTED`    | overall ≥ 70 and no failed challenge in the last 60 s                  |
-| `SUSPICIOUS` | 40 ≤ overall < 70 → a challenge is issued (see §6)                     |
+| `TRUSTED`    | overall ≥ 70, every component ≥ 50, no failed challenge in the last 60 s |
+| `SUSPICIOUS` | 40 ≤ overall < 70, **or any single component < 50** → a challenge is issued (see §6). The component floor matters: with consistency weighted 30 %, a node lying about every claim would otherwise never leave TRUSTED |
 | `SHADOW`     | overall < 40, **or** any failed challenge. Frames still ingested and logged; witness excluded from every decision; challenged every 10 s |
 | `UNKNOWN`    | claim-level, not node-level: witnesses conflict with no majority and no failed challenge → withhold action, raise `conflict`, keep challenging |
 | `RECOVERING` | after `restore` / honest behaviour resumes from SHADOW: **10 consecutive passed challenges** (one every 5 s) before the vote counts again; progress exposed as `recovery: "6/10"` |
@@ -180,8 +180,11 @@ Debt never goes below 0 or above 100. **Nothing resets instantly**; recovery is 
 `RECOVERING`-but-not-yet-voting is excluded:
 
 - majority value = value reported by more than half of the *voting* witnesses
-- a voting witness that disagrees with the majority is an **outlier** this cycle
-- vision witnesses count only if `conf ≥ 0.6`
+- a witness that disagrees with the majority is an **outlier** this cycle; the first
+  disagreeing cycle is free (real PIRs lag cameras by up to a second), debt starts on
+  the second consecutive cycle
+- a reading older than 3 s does not vote; vision witnesses count only if `conf ≥ 0.6`
+- a claim with reporters but no majority (for example 1 vs 1) is `UNKNOWN`
 
 **Physics rules** — violation adds consistency debt to the reporting witness:
 

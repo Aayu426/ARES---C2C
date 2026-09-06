@@ -40,8 +40,10 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI):
         await transport.start(asyncio.get_running_loop())
+        await engine.start()
         print(f"[ares] gateway up in {mode} mode")
         yield
+        await engine.stop()
         await transport.stop()
 
     app = FastAPI(title="ARES gateway", lifespan=lifespan)
