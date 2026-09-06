@@ -8,8 +8,9 @@ byte-for-byte the honest ones plus an attack switch that only the gateway can fl
 
 | Node | Part            | Pin              | Notes                                         |
 |------|-----------------|------------------|-----------------------------------------------|
-| A    | PIR OUT         | GPIO16           | VCC: try 3V3 first; many PIR modules need 5 V (VIN) |
-| A    | DS18B20 DATA    | GPIO21           | 4.7 kΩ pull-up to 3V3; optional, drop if flaky |
+| A    | PIR OUT         | GPIO16           | HC-SR501: VCC to **VIN (5 V)**, not 3V3; H/L jumper to L (single trigger); delay pot to minimum |
+| A    | GY-906 MLX90614 SDA / SCL | GPIO21 / GPIO22 | VIN → 3V3, GND → GND; reports object temperature (a hand in front shows) |
+| A    | (alt.) DS18B20 DATA | GPIO21        | build with -DHAS_TEMP_DS18B20 instead of -DHAS_TEMP_MLX |
 | A    | buzzer          | GPIO15           | active HIGH                                    |
 | A, B | status LED 1/2  | GPIO2 / GPIO12   | 00 normal · 01 warning · 10 shadow · 11 challenge |
 | B    | water sensor AO | GPIO36 (VP)      | 3V3; input-only ADC1 pin                       |

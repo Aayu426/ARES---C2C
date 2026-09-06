@@ -14,7 +14,9 @@
 #define PIR_PIN 16          // PIR OUT  (HAS_PIR)
 #define WATER_PIN 36        // water AO, ADC1 input-only pin (HAS_WATER)
 #define WATER_WET_THRESHOLD 1500   // raw ADC above this = wet; tune with the tray
-#define TEMP_PIN 21         // DS18B20 data, 4.7k pull-up to 3V3 (HAS_TEMP)
+#define TEMP_PIN 21         // DS18B20 data, 4.7k pull-up to 3V3 (HAS_TEMP_DS18B20)
+#define I2C_SDA 21          // GY-906 MLX90614 SDA (HAS_TEMP_MLX)
+#define I2C_SCL 22          // GY-906 MLX90614 SCL (HAS_TEMP_MLX); VIN -> 3V3, GND -> GND
 
 // ---- outputs ----
 #define ALARM_PIN 15        // buzzer (HAS_ALARM); active HIGH

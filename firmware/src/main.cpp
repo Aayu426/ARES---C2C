@@ -16,11 +16,17 @@
 #include "config.h"
 #include "secrets.h"
 
-#ifdef HAS_TEMP
+#ifdef HAS_TEMP_DS18B20
 #include <OneWire.h>
 #include <DallasTemperature.h>
 static OneWire oneWire(TEMP_PIN);
 static DallasTemperature temps(&oneWire);
+#endif
+#ifdef HAS_TEMP_MLX
+#include <Wire.h>
+#include <Adafruit_MLX90614.h>
+static Adafruit_MLX90614 mlx;
+static bool mlxOk = false;
 #endif
 
 // ---------------------------------------------------------------- identity
@@ -108,10 +114,16 @@ static int readWaterRaw() {
 }
 
 static bool readTemp(float& out) {
-#ifdef HAS_TEMP
+#if defined(HAS_TEMP_DS18B20)
   temps.requestTemperatures();
   float t = temps.getTempCByIndex(0);
   if (t == DEVICE_DISCONNECTED_C || t < -40 || t > 125) return false;
+  out = t;
+  return true;
+#elif defined(HAS_TEMP_MLX)
+  if (!mlxOk) return false;
+  float t = mlx.readObjectTempC();     // what the sensor is pointed at; a hand in front shows immediately
+  if (isnan(t) || t < -40 || t > 125) return false;
   out = t;
   return true;
 #else
@@ -219,8 +231,13 @@ void setup() {
 #ifdef HAS_STATUS_LEDS
   pinMode(LED1_PIN, OUTPUT); pinMode(LED2_PIN, OUTPUT); setStatusLeds(0);
 #endif
-#ifdef HAS_TEMP
+#ifdef HAS_TEMP_DS18B20
   temps.begin();
+#endif
+#ifdef HAS_TEMP_MLX
+  Wire.begin(I2C_SDA, I2C_SCL);
+  mlxOk = mlx.begin();
+  if (!mlxOk) Serial.println("{\"t\":\"log\",\"msg\":\"MLX90614 not found on I2C; temp disabled\"}");
 #endif
   loadKey();
   computeFirmwareFingerprint();
