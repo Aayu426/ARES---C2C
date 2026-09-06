@@ -41,25 +41,8 @@ const INITIAL_NODES = {
     ],
     last: { water: 0 },
   },
-  C: {
-    node_id: "C",
-    name: "Node C",
-    sensorType: "camera",
-    sensorLabel: "Camera Witness",
-    hardware: "ESP32-CAM",
-    isSimulated: false,
-    state: "TRUSTED",
-    identity: 100,
-    integrity: 100,
-    consistency: 100,
-    overall: 100,
-    recovery: null,
-    lastReason: "Vision stream verified",
-    trustHistory: [
-      { time: "00:00", overall: 100, identity: 100, integrity: 100, consistency: 100 },
-    ],
-    last: { motion: 0, water: 0 },
-  },
+  // Node C (ESP32-CAM) is not deployed — webcam-only. It appears automatically if a
+  // camera streams in (the gateway sends node_update for C and the node is created).
   WEBCAM: {
     node_id: "WEBCAM",
     name: "Webcam Witness",
@@ -369,6 +352,11 @@ export function useStreamData() {
     if (isConnected) {
       clearReplayTimeouts();
       setIsReplaying(false);
+      // The pre-connection sample replay can seed demo-only nodes (e.g. Node C from the
+      // sample stream). Once the live gateway is driving, reset to the real witnesses so
+      // only nodes the gateway actually reports are shown.
+      setNodes(INITIAL_NODES);
+      setEvents([]);
     } else {
       startReplay();
     }

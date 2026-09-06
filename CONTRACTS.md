@@ -18,7 +18,7 @@ Device trust and claim trust are tracked separately.
 |----------|-----------------------------------|--------------------------------------|--------------------------------|
 | `A`      | ESP32 #1: PIR + temp (optional)   | USB serial, 115200 baud, NDJSON      | `motion`, `temp` (physics only)|
 | `B`      | ESP32 #2: water sensor            | USB serial, 115200 baud, NDJSON      | `water`                        |
-| `C`      | ESP32-CAM                         | MJPEG stream over laptop hotspot; the vision service turns frames into witness messages | `motion`, `water` |
+| `C`      | ESP32-CAM (OPTIONAL, not deployed) | MJPEG over laptop hotspot; appears only if a camera streams. OV7670 is NOT usable here (needs its own ESP32 + poor driver support) | `motion`, `water` |
 | `WEBCAM` | laptop camera, second angle       | local; vision service                | `motion`, `water`              |
 | `ALARM`  | buzzer + LED on node A spare pins | serial command to `A`                | —                              |
 

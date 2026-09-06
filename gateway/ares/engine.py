@@ -404,6 +404,11 @@ class Engine:
         self._publish_node(node, force)
 
     def _publish_node(self, node: NodeRecord, force: bool = False) -> None:
+        # A node that has never reported (e.g. a camera that is not deployed) is not
+        # broadcast, so the dashboard shows only witnesses that actually exist. It
+        # appears the moment it sends its first frame.
+        if node.last_seen is None and not force:
+            return
         snap = node.snapshot()
         key = json.dumps({k: snap[k] for k in ("state", "identity", "integrity", "consistency", "recovery", "last", "online")}, sort_keys=True, default=str)
         if force or self._last_snapshot.get(node.node_id) != key:
@@ -458,6 +463,7 @@ class Engine:
         return f"{len(frames)} captured frames replayed as {node_id}"
 
     def state(self) -> dict:
-        return {"mode": self.mode, "nodes": {n: r.snapshot() for n, r in self.nodes.items()},
+        return {"mode": self.mode,
+                "nodes": {n: r.snapshot() for n, r in self.nodes.items() if r.last_seen is not None},
                 "claims": self.claims, "alarm": self.alarm,
                 "incidents": self.store.recent_incidents(20), "time": time.time()}
