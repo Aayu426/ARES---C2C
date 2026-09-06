@@ -213,6 +213,17 @@ class Engine:
             return
         node.latest[claim] = (value, conf, time.time())
         self.bus.publish(event)
+        if claim == "temp":
+            drift = self.physics.check_drift(node.node_id, claim, value)
+            if drift:
+                node.trust.outlier()            # a patient liar bleeds trust the same way an outlier does
+                node.trust.outlier()
+                node.last_reason = drift
+                self.bus.publish({"e": "drift_detected", "node_id": node.node_id, "claim": claim, "detail": drift})
+                self.bus.publish({"e": "incident", "id": f"drf-{uuid.uuid4().hex[:6]}", "claim": claim,
+                                  "summary": f"{node.node_id}: {drift}"})
+                self._apply_state(node, drift)
+                self._publish_node(node, force=True)
 
     async def on_challenge_response(self, node: NodeRecord, msg: dict) -> None:
         await self.challenges.on_response(node, msg)
@@ -302,7 +313,8 @@ class Engine:
                 summary = f"{claim} confirmed by {', '.join(by)}; {liars} reported none"
                 evidence = {"claim": claim, "by": by, "against": against,
                             "states": {n: self.nodes[n].trust.state for n in by + against},
-                            "reasons": {n: self.nodes[n].last_reason for n in against}}
+                            "reasons": {n: f"it reported no {claim} while {', '.join(by)} reported {claim}" for n in against},
+                            "node_status": {n: self.nodes[n].last_reason for n in against}}
                 self.store.add_incident(iid, claim, summary, evidence)
                 self.bus.publish({"e": "incident", "id": iid, "claim": claim, "summary": summary, "evidence": evidence})
             asyncio.ensure_future(self._update_alarm())

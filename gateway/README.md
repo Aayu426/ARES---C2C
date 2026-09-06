@@ -53,6 +53,18 @@ inject           ->  80 °C rejected by physics, no action, incident
 restore          ->  RECOVERING 0/10 -> a challenge every 5 s -> TRUSTED at 10/10 (~50 s)
 ```
 
+```
+drift            ->  +0.1 °C per interval, every step legal -> drift_detected after ~30 s -> SUSPICIOUS
+replay           ->  captured frames re-sent -> rejected on seq -> SHADOW (a reboot is allowed)
+```
+
+## Numbers and the explain button
+
+```bash
+.venv\Scripts\python measure.py --trials 20 --honest 120      # writes metrics.json, served at /metrics
+set GEMINI_API_KEY=...                                        # optional; /explain falls back to a template
+```
+
 `known_fw.json` holds the known-good firmware fingerprints (defaults match the
 simulator). Aayush replaces them with the SHA-256 of the honest builds.
 

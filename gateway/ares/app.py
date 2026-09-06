@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from .bus import EventBus
 from .challenges import load_known_fw
 from .engine import Engine, load_keys
+from .explain import explain
+import json, os
 from .store import Store
 from .transports.base import Transport
 from .transports.http_transport import HttpTransport, MultiTransport
@@ -117,6 +119,23 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
         if not isinstance(transport, SimTransport):
             raise HTTPException(400, "not in sim mode")
         return {"ok": True, "env": transport.set_env(person=body.person, water=body.water, temp=body.temp)}
+
+    @app.get("/explain/{incident_id}")
+    async def explain_incident(incident_id: str):
+        """Advisory only: reads logged evidence, returns three sentences. Never writes."""
+        incident = store.get_incident(incident_id)
+        if incident is None:
+            raise HTTPException(404, f"no incident {incident_id}")
+        return {"incident_id": incident_id, **explain(incident)}
+
+    @app.get("/metrics")
+    async def metrics():
+        """Output of measure.py (detection latency, catch rate, false positives)."""
+        path = os.path.join(os.path.dirname(db_path) or ".", "metrics.json")
+        if not os.path.exists(path):
+            return {"available": False, "hint": "run: python measure.py"}
+        with open(path, encoding="utf-8") as fh:
+            return {"available": True, **json.load(fh)}
 
     @app.get("/events/recent")
     async def recent():

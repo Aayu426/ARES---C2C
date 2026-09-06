@@ -171,6 +171,7 @@ Each component keeps a `debt` in 0–100. `component = 100 - debt`.
 | integrity challenge failed              | integrity debt = 100                    |
 | outlier on a claim vs other witnesses   | consistency debt += 30 per cycle (after one free cycle) |
 | physics rule violated                   | consistency debt += 40                  |
+| slow drift detected (short-term level ≥ 1.5 °C from the long-term baseline, ≥ 80 % of recent steps one-sided, every step within the rate rule) | consistency debt += 60, event `drift_detected`, incident |
 | clean cycle (≥1 valid frame, no bad frame, not an outlier) | every debt -= 2 (repays slowly) |
 | challenge passed                        | that component's debt -= 20; while RECOVERING every debt -= 10 as well |
 
@@ -264,8 +265,8 @@ cannot suppress a claim two other witnesses can see.
 | POST   | `/inbox`                   | `resp` (or `wit`) from an HTTP node                             |
 | POST   | `/attack`                  | `{"type":"suppress_motion"\|"suppress_water"\|"spoof"\|"replay"\|"inject"\|"restore","target":"A"\|"B"}` |
 | GET    | `/state`                   | full snapshot: nodes, claims, incidents (dashboard initial load)|
-| GET    | `/explain/{incident_id}`   | `{"text":"…3 sentences…","source":"gemini"\|"template"}`         |
-| GET    | `/metrics`                 | output of the 20-run numbers script                             |
+| GET    | `/explain/{incident_id}`   | `{"text":"…3 sentences…","source":"gemini"\|"template"}`. Uses Gemini when `GEMINI_API_KEY` is set (model from `GEMINI_MODEL`, default `gemini-2.5-flash`), otherwise a deterministic template with the same shape. Read-only: it cannot change trust, state or actions |
+| GET    | `/metrics`                 | output of `gateway/measure.py` (`metrics.json`): median/p95 detection latency, catch rate, false positives per hour of honest running |
 
 `/attack` in `sim` mode performs the attack inside the simulator; in `serial` mode it
 sends the §3.6 command to the target board. Real boards cannot impersonate themselves,
@@ -287,6 +288,8 @@ who wants to see the attack come from outside. Every attack is idempotent; `rest
 {"e":"incident","id":"i-17","claim":"motion","summary":"motion confirmed by C, WEBCAM while A reported none; A failed integrity","ts":1725600000123}
 {"e":"alarm","on":true,"reason":"motion confirmed by C, WEBCAM"}
 {"e":"escalation","node_id":"A","claim":null,"reason":"A is authentic and unmodified but isolated on its claim -> human decision"}
+{"e":"drift_detected","node_id":"A","claim":"temp","detail":"slow drift: +3.6 °C from baseline in steps of at most 0.36 °C, each too small for any alarm"}
+{"e":"replay_rejected","node_id":"B","seq":182,"detail":"replayed frame rejected: seq 182 already seen (last 186)"}
 ```
 
 Aryan builds against `docs/sample_stream.json` (a hand-written 60 s sequence of these

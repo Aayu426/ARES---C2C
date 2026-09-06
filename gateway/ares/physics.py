@@ -15,6 +15,15 @@ ZERO_VAR_SAMPLES = 30
 ZERO_VAR_EPS = 0.01
 FLAP_MAX_PER_SEC = 5
 
+# slow drift: every step passes the rate rule, but the short-term level walks away
+# from the long-term baseline in one direction
+DRIFT_BASELINE_ALPHA = 0.02     # long memory (~50 samples)
+DRIFT_SHORT_ALPHA = 0.3         # short memory (~3 samples)
+DRIFT_MIN_SAMPLES = 15
+DRIFT_THRESHOLD = 1.5           # °C short-term above/below baseline
+DRIFT_ONE_SIDED = 0.8           # fraction of recent steps that must share a sign
+DRIFT_COOLDOWN = 5.0            # seconds between penalties for the same sensor
+
 
 class ClaimHistory:
     """Per (node, claim) history of (time, value)."""
@@ -31,9 +40,49 @@ class ClaimHistory:
         self.samples.append((at, value))
 
 
+class DriftTracker:
+    def __init__(self) -> None:
+        self.baseline: float | None = None
+        self.short: float | None = None
+        self.n = 0
+        self.steps: deque[float] = deque(maxlen=20)
+        self.last_value: float | None = None
+        self.last_penalty = 0.0
+        self.started_at: float | None = None
+
+    def update(self, value: float) -> str | None:
+        now = time.time()
+        if self.baseline is None:
+            self.baseline = self.short = value
+            self.started_at = now
+        else:
+            self.steps.append(value - (self.last_value if self.last_value is not None else value))
+            self.short = DRIFT_SHORT_ALPHA * value + (1 - DRIFT_SHORT_ALPHA) * self.short
+            self.baseline = DRIFT_BASELINE_ALPHA * value + (1 - DRIFT_BASELINE_ALPHA) * self.baseline
+        self.last_value = value
+        self.n += 1
+        if self.n < DRIFT_MIN_SAMPLES or len(self.steps) < 8:
+            return None
+        gap = self.short - self.baseline
+        signs = [1 if s > 0 else -1 if s < 0 else 0 for s in self.steps]
+        pos = sum(1 for s in signs if s > 0) / len(signs)
+        neg = sum(1 for s in signs if s < 0) / len(signs)
+        one_sided = max(pos, neg) >= DRIFT_ONE_SIDED
+        if abs(gap) >= DRIFT_THRESHOLD and one_sided and now - self.last_penalty > DRIFT_COOLDOWN:
+            self.last_penalty = now
+            biggest = max(abs(s) for s in self.steps)
+            return (f"slow drift: {gap:+.1f} °C from baseline in steps of at most {biggest:.2f} °C, "
+                    f"each too small for any alarm")
+        return None
+
+
 class Physics:
     def __init__(self) -> None:
         self.hist: dict[tuple[str, str], ClaimHistory] = {}
+        self.drift: dict[tuple[str, str], DriftTracker] = {}
+
+    def check_drift(self, node_id: str, claim: str, value: float) -> str | None:
+        return self.drift.setdefault((node_id, claim), DriftTracker()).update(value)
 
     def _h(self, node_id: str, claim: str) -> ClaimHistory:
         return self.hist.setdefault((node_id, claim), ClaimHistory())
