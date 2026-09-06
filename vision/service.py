@@ -131,9 +131,14 @@ class Witness:
         return None
 
     def open(self) -> bool:
-        self.cap = cv2.VideoCapture(self.source)
+        # For a laptop webcam (integer index) use DirectShow on Windows: the default
+        # MSMF backend often fails with "can't grab frame". A URL uses the default backend.
+        if isinstance(self.source, int) and hasattr(cv2, "CAP_DSHOW"):
+            self.cap = cv2.VideoCapture(self.source, cv2.CAP_DSHOW)
+        else:
+            self.cap = cv2.VideoCapture(self.source)
         ok = self.cap.isOpened()
-        print(f"[{self.node_id}] source {self.source}: {'open' if ok else 'FAILED'}")
+        print(f"[{self.node_id}] source {self.source}: {'open' if ok else 'FAILED'}", flush=True)
         return ok
 
     def post(self, path: str, body: dict) -> None:
