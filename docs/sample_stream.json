@@ -1,0 +1,71 @@
+[
+  {"at": 0.0, "e": "node_update", "node_id": "A", "state": "TRUSTED", "identity": 100, "integrity": 100, "consistency": 100, "overall": 100, "recovery": null, "last": {"motion": 0, "temp": 24.4}},
+  {"at": 0.0, "e": "node_update", "node_id": "B", "state": "TRUSTED", "identity": 100, "integrity": 100, "consistency": 100, "overall": 100, "recovery": null, "last": {"water": 0}},
+  {"at": 0.0, "e": "node_update", "node_id": "C", "state": "TRUSTED", "identity": 100, "integrity": 100, "consistency": 100, "overall": 100, "recovery": null, "last": {"motion": 0, "water": 0}},
+  {"at": 0.0, "e": "node_update", "node_id": "WEBCAM", "state": "TRUSTED", "identity": 100, "integrity": 100, "consistency": 100, "overall": 100, "recovery": null, "last": {"motion": 0, "water": 0}},
+  {"at": 0.0, "e": "claim", "claim": "motion", "status": "CLEAR", "by": ["A", "C", "WEBCAM"], "against": []},
+  {"at": 0.0, "e": "claim", "claim": "water", "status": "CLEAR", "by": ["B", "C", "WEBCAM"], "against": []},
+  {"at": 0.0, "e": "alarm", "on": false, "reason": "baseline"},
+
+  {"at": 1.0, "e": "witness", "node_id": "A", "claim": "motion", "value": 0, "conf": 1.0},
+  {"at": 1.0, "e": "witness", "node_id": "C", "claim": "motion", "value": 0, "conf": 0.98},
+  {"at": 1.0, "e": "witness", "node_id": "WEBCAM", "claim": "motion", "value": 0, "conf": 0.99},
+  {"at": 2.0, "e": "node_update", "node_id": "A", "state": "TRUSTED", "identity": 100, "integrity": 100, "consistency": 100, "overall": 100, "recovery": null, "last": {"motion": 0, "temp": 24.5}},
+
+  {"at": 8.0, "e": "incident", "id": "i-0", "claim": "attack", "summary": "judge pressed SUPPRESS MOTION on A", "ts": 1725600008000},
+
+  {"at": 10.0, "e": "witness", "node_id": "C", "claim": "motion", "value": 1, "conf": 0.91},
+  {"at": 10.2, "e": "witness", "node_id": "WEBCAM", "claim": "motion", "value": 1, "conf": 0.94},
+  {"at": 10.5, "e": "witness", "node_id": "A", "claim": "motion", "value": 0, "conf": 1.0},
+  {"at": 11.0, "e": "node_update", "node_id": "A", "state": "TRUSTED", "identity": 100, "integrity": 100, "consistency": 75, "overall": 92, "recovery": null, "last": {"motion": 0, "temp": 24.5}},
+  {"at": 12.0, "e": "witness", "node_id": "A", "claim": "motion", "value": 0, "conf": 1.0},
+  {"at": 12.0, "e": "node_update", "node_id": "A", "state": "TRUSTED", "identity": 100, "integrity": 100, "consistency": 50, "overall": 85, "recovery": null, "last": {"motion": 0, "temp": 24.5}},
+  {"at": 13.0, "e": "witness", "node_id": "A", "claim": "motion", "value": 0, "conf": 1.0},
+  {"at": 13.0, "e": "node_update", "node_id": "A", "state": "SUSPICIOUS", "identity": 100, "integrity": 100, "consistency": 25, "overall": 62, "recovery": null, "last": {"motion": 0, "temp": 24.5}},
+  {"at": 13.0, "e": "state_change", "node_id": "A", "from": "TRUSTED", "to": "SUSPICIOUS", "reason": "outlier on motion for 3 cycles: C, WEBCAM report 1, A reports 0"},
+
+  {"at": 13.5, "e": "challenge_issued", "node_id": "A", "challenge_id": "c-1043", "type": "identity", "reason": "A disagrees with C, WEBCAM on motion → confirming this is really A before judging the claim"},
+  {"at": 14.4, "e": "challenge_result", "node_id": "A", "challenge_id": "c-1043", "type": "identity", "passed": true, "detail": "nonce signed with A's key"},
+  {"at": 14.6, "e": "challenge_issued", "node_id": "A", "challenge_id": "c-1044", "type": "integrity", "reason": "identity real, claim still isolated → checking firmware, not identity"},
+  {"at": 15.5, "e": "challenge_result", "node_id": "A", "challenge_id": "c-1044", "type": "integrity", "passed": false, "detail": "fingerprint 7a1c… does not match known-good e3b0…"},
+  {"at": 15.6, "e": "node_update", "node_id": "A", "state": "SHADOW", "identity": 100, "integrity": 0, "consistency": 25, "overall": 42, "recovery": null, "last": {"motion": 0, "temp": 24.5}},
+  {"at": 15.6, "e": "state_change", "node_id": "A", "from": "SUSPICIOUS", "to": "SHADOW", "reason": "integrity challenge failed: authentic but tampered"},
+
+  {"at": 16.0, "e": "claim", "claim": "motion", "status": "CONFIRMED", "by": ["C", "WEBCAM"], "against": ["A"]},
+  {"at": 16.0, "e": "incident", "id": "i-17", "claim": "motion", "summary": "motion confirmed by C, WEBCAM while A reported none; A failed integrity and is in shadow", "ts": 1725600016000},
+  {"at": 16.0, "e": "alarm", "on": true, "reason": "motion confirmed by C, WEBCAM"},
+
+  {"at": 18.0, "e": "witness", "node_id": "A", "claim": "motion", "value": 0, "conf": 1.0},
+  {"at": 18.0, "e": "node_update", "node_id": "A", "state": "SHADOW", "identity": 100, "integrity": 0, "consistency": 10, "overall": 38, "recovery": null, "last": {"motion": 0, "temp": 24.5}},
+
+  {"at": 24.0, "e": "witness", "node_id": "C", "claim": "motion", "value": 0, "conf": 0.97},
+  {"at": 24.2, "e": "witness", "node_id": "WEBCAM", "claim": "motion", "value": 0, "conf": 0.98},
+  {"at": 25.0, "e": "claim", "claim": "motion", "status": "CLEAR", "by": ["C", "WEBCAM"], "against": []},
+  {"at": 25.0, "e": "alarm", "on": false, "reason": "motion clear"},
+
+  {"at": 26.0, "e": "challenge_issued", "node_id": "A", "challenge_id": "c-1051", "type": "integrity", "reason": "shadowed node A re-tested"},
+  {"at": 27.0, "e": "challenge_result", "node_id": "A", "challenge_id": "c-1051", "type": "integrity", "passed": false, "detail": "fingerprint mismatch"},
+
+  {"at": 30.0, "e": "incident", "id": "i-1", "claim": "attack", "summary": "judge pressed SPOOF on A", "ts": 1725600030000},
+  {"at": 30.4, "e": "node_update", "node_id": "A", "state": "SHADOW", "identity": 0, "integrity": 0, "consistency": 10, "overall": 3, "recovery": null, "last": {"motion": 1, "temp": 24.5}},
+  {"at": 30.4, "e": "state_change", "node_id": "A", "from": "SHADOW", "to": "SHADOW", "reason": "frame with invalid HMAC rejected: impostor"},
+  {"at": 30.4, "e": "incident", "id": "i-18", "claim": "identity", "summary": "3 frames claiming to be A carried invalid signatures and were dropped", "ts": 1725600030400},
+
+  {"at": 36.0, "e": "incident", "id": "i-2", "claim": "attack", "summary": "judge pressed INJECT TEMP on A", "ts": 1725600036000},
+  {"at": 36.5, "e": "incident", "id": "i-19", "claim": "temp", "summary": "reading 80.0 °C rejected: 55.5 °C change in 1 s violates physics; no action taken", "ts": 1725600036500},
+
+  {"at": 42.0, "e": "incident", "id": "i-3", "claim": "attack", "summary": "judge pressed RESTORE", "ts": 1725600042000},
+  {"at": 43.0, "e": "challenge_issued", "node_id": "A", "challenge_id": "c-1060", "type": "integrity", "reason": "recovery 0/10"},
+  {"at": 43.8, "e": "challenge_result", "node_id": "A", "challenge_id": "c-1060", "type": "integrity", "passed": true, "detail": "fingerprint matches known-good"},
+  {"at": 43.8, "e": "node_update", "node_id": "A", "state": "RECOVERING", "identity": 20, "integrity": 20, "consistency": 30, "overall": 23, "recovery": "1/10", "last": {"motion": 0, "temp": 24.6}},
+  {"at": 43.8, "e": "state_change", "node_id": "A", "from": "SHADOW", "to": "RECOVERING", "reason": "honest fingerprint again; must pass 10 consecutive challenges before voting"},
+  {"at": 48.0, "e": "challenge_issued", "node_id": "A", "challenge_id": "c-1061", "type": "identity", "reason": "recovery 1/10"},
+  {"at": 48.7, "e": "challenge_result", "node_id": "A", "challenge_id": "c-1061", "type": "identity", "passed": true, "detail": "nonce signed"},
+  {"at": 48.7, "e": "node_update", "node_id": "A", "state": "RECOVERING", "identity": 40, "integrity": 40, "consistency": 34, "overall": 38, "recovery": "2/10", "last": {"motion": 0, "temp": 24.6}},
+  {"at": 53.0, "e": "challenge_issued", "node_id": "A", "challenge_id": "c-1062", "type": "integrity", "reason": "recovery 2/10"},
+  {"at": 53.8, "e": "challenge_result", "node_id": "A", "challenge_id": "c-1062", "type": "integrity", "passed": true, "detail": "fingerprint matches known-good"},
+  {"at": 53.8, "e": "node_update", "node_id": "A", "state": "RECOVERING", "identity": 60, "integrity": 60, "consistency": 38, "overall": 53, "recovery": "3/10", "last": {"motion": 0, "temp": 24.6}},
+  {"at": 58.0, "e": "challenge_issued", "node_id": "A", "challenge_id": "c-1063", "type": "identity", "reason": "recovery 3/10"},
+  {"at": 58.8, "e": "challenge_result", "node_id": "A", "challenge_id": "c-1063", "type": "identity", "passed": true, "detail": "nonce signed"},
+  {"at": 58.8, "e": "node_update", "node_id": "A", "state": "RECOVERING", "identity": 80, "integrity": 80, "consistency": 42, "overall": 69, "recovery": "4/10", "last": {"motion": 0, "temp": 24.6}}
+]
