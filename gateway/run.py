@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 
 import uvicorn
 
@@ -23,6 +25,8 @@ def main() -> None:
     parser.add_argument("--db", default="ares.db")
     parser.add_argument("--sim-interval", type=float, default=1.0)
     args = parser.parse_args()
+    os.environ.setdefault("PYTHONUNBUFFERED", "1")
+    sys.stdout.reconfigure(line_buffering=True)   # logs reach files and pipes immediately
 
     ports = [p.strip() for p in args.ports.split(",") if p.strip()]
     app = create_app(mode=args.mode, ports=ports, keys_path=args.keys, db_path=args.db,

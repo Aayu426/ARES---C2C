@@ -31,6 +31,7 @@ class TrustVector:
         self.last_failed_challenge: float | None = None
         self.recovering = False
         self.recovery_passed = 0
+        self.last_verified: float | None = None   # last passed integrity challenge
         self.state = "TRUSTED"
         self.state_since = time.time()
 
@@ -94,8 +95,13 @@ class TrustVector:
         for k in self.debt:
             self._add(k, -REPAY_CLEAN)
 
+    def verified_recently(self, window: float = 30.0) -> bool:
+        return self.last_verified is not None and time.time() - self.last_verified < window
+
     def challenge_passed(self, component: str) -> None:
         self._add(component, -REPAY_CHALLENGE)
+        if component == "integrity":
+            self.last_verified = time.time()
         if self.recovering:
             for k in self.debt:                     # earning the vote back repays every component
                 self._add(k, -REPAY_CHALLENGE / 2)

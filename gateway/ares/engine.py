@@ -30,6 +30,7 @@ FRESH_SECONDS = 3.0                    # a reading older than this does not vote
 MIN_VISION_CONF = 0.6
 OUTLIER_GRACE_CYCLES = 1               # first disagreeing cycle is free (sensor latency)
 TICK_SECONDS = 1.0
+CONFLICT_RETRY = 5.0                   # seconds between tie-break challenges per node
 LED_CODE = {"TRUSTED": 0, "SUSPICIOUS": 1, "RECOVERING": 1, "SHADOW": 2}   # status LEDs on the boards
 
 
@@ -55,6 +56,7 @@ class NodeRecord:
         self.last_seen: float | None = None
         self.last_seq: int | None = None
         self.last_ts: float | None = None
+        self.last_conflict_challenge = 0.0
         self.last: dict = {}                       # last raw values shown on the dashboard
         self.latest: dict[str, tuple[float, float, float]] = {}   # claim -> (value, conf, at) accepted readings
         self.disagree_cycles: dict[str, int] = {}  # claim -> consecutive cycles as outlier
@@ -237,7 +239,9 @@ class Engine:
                 try:
                     self._tick()
                 except Exception as exc:  # never let the tick die
-                    print(f"[engine] tick error: {exc!r}")
+                    import traceback
+                    print(f"[engine] tick error: {exc!r}", flush=True)
+                    traceback.print_exc()
         except asyncio.CancelledError:
             pass
 
@@ -257,10 +261,18 @@ class Engine:
                 if node.trust.voting:
                     votes[node.node_id] = value
 
+            # only witnesses that can still be believed take part in a disagreement
+            active = {n: v for n, v in reporters.items() if self.nodes[n].trust.state in ("TRUSTED", "SUSPICIOUS")}
             majority = self._majority(votes)
-            if majority is None:
-                status = "UNKNOWN" if len(set(reporters.values())) > 1 else "CLEAR"
-                self._set_claim(claim, status, [], list(reporters), 0)
+            disagreement = len(set(active.values())) > 1
+
+            if majority is None or (len(votes) < 2 and disagreement):
+                # no majority, or a lone voter facing dissent: a tie. Proof decides, not the vote.
+                status = "UNKNOWN" if disagreement else ("CONFIRMED" if majority == 1 else "CLEAR")
+                by = [n for n, v in votes.items() if majority is not None and v == majority] if not disagreement else []
+                self._set_claim(claim, status, by, [n for n in active if n not in by], int(majority or 0))
+                if status == "UNKNOWN":
+                    self._challenge_conflict(claim, list(active))
                 continue
 
             by = [n for n, v in votes.items() if v == majority]
@@ -269,7 +281,7 @@ class Engine:
                 outliers.add(node_id)
                 node = self.nodes[node_id]
                 node.disagree_cycles[claim] = node.disagree_cycles.get(claim, 0) + 1
-                if node.disagree_cycles[claim] > OUTLIER_GRACE_CYCLES:
+                if node.disagree_cycles[claim] > OUTLIER_GRACE_CYCLES and not node.trust.verified_recently():
                     node.trust.outlier()
                     node.last_reason = (f"outlier on {claim} for {node.disagree_cycles[claim]} cycles: "
                                         f"{', '.join(by)} report {int(majority)}, {node_id} reports {int(reporters[node_id])}")
@@ -284,6 +296,24 @@ class Engine:
             node.good_this_tick = node.bad_this_tick = 0
             self._apply_state(node, node.last_reason)
             self._publish_node(node)
+
+    def _challenge_conflict(self, claim: str, reporters: list[str]) -> None:
+        """No majority (for example 1 vs 1): proof breaks the tie. Every conflicting
+        witness is asked for its firmware fingerprint; a failure shadows it and the
+        remaining witnesses form the majority."""
+        now = time.time()
+        for node_id in reporters:
+            node = self.nodes[node_id]
+            if node.trust.state not in ("TRUSTED", "SUSPICIOUS"):
+                continue
+            if any(p.node_id == node_id for p in self.challenges.pending.values()):
+                continue
+            if now - node.last_conflict_challenge < CONFLICT_RETRY:
+                continue
+            node.last_conflict_challenge = now
+            others = ", ".join(n for n in reporters if n != node_id)
+            reason = f"{claim}: {node_id} and {others} disagree with no majority -> asking {node_id} to prove its firmware"
+            asyncio.ensure_future(self.challenges.issue(node, "integrity", reason))
 
     @staticmethod
     def _majority(votes: dict[str, float]) -> float | None:
@@ -306,18 +336,21 @@ class Engine:
                 self.bus.publish({"e": "escalation", "node_id": None, "claim": claim,
                                   "reason": f"{claim}: witnesses conflict with no majority -> no action, human decision"})
             new_liars = set(against) - set(prev.get("against", []))
+            asyncio.ensure_future(self._update_alarm())   # never downstream of a database write
             if status == "CONFIRMED" and (prev.get("status") != "CONFIRMED" or new_liars):
                 self._incident_n += 1
-                iid = f"i-{self._incident_n}"
+                iid = f"i-{uuid.uuid4().hex[:6]}"          # unique across gateway restarts
                 liars = ", ".join(against) if against else "nobody"
                 summary = f"{claim} confirmed by {', '.join(by)}; {liars} reported none"
                 evidence = {"claim": claim, "by": by, "against": against,
                             "states": {n: self.nodes[n].trust.state for n in by + against},
                             "reasons": {n: f"it reported no {claim} while {', '.join(by)} reported {claim}" for n in against},
                             "node_status": {n: self.nodes[n].last_reason for n in against}}
-                self.store.add_incident(iid, claim, summary, evidence)
+                try:
+                    self.store.add_incident(iid, claim, summary, evidence)
+                except Exception as exc:
+                    print(f"[engine] incident store failed: {exc!r}", flush=True)
                 self.bus.publish({"e": "incident", "id": iid, "claim": claim, "summary": summary, "evidence": evidence})
-            asyncio.ensure_future(self._update_alarm())
 
     async def _update_alarm(self) -> None:
         confirmed = [c for c, v in self.claims.items() if v["status"] == "CONFIRMED"]

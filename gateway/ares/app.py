@@ -37,15 +37,16 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
                db_path: str = "ares.db", sim_interval: float = 1.0, known_fw_path: str = "known_fw.json",
                **challenge_opts) -> FastAPI:
     keys = load_keys(keys_path)
+    known_fw = load_known_fw(known_fw_path)
     store = Store(db_path)
     bus = EventBus()
     if mode == "sim":
-        transport: Transport = SimTransport(keys, sim_interval)
+        transport: Transport = SimTransport(keys, sim_interval, known_fw)   # honest twins report the known-good fingerprints
     else:
         serial_t = SerialTransport(ports or [])
         http_t = HttpTransport(["C", "WEBCAM"])
         transport = MultiTransport({"A": serial_t, "B": serial_t, "C": http_t, "WEBCAM": http_t})
-    engine = Engine(transport, store, bus, keys, mode, known_fw=load_known_fw(known_fw_path), **challenge_opts)
+    engine = Engine(transport, store, bus, keys, mode, known_fw=known_fw, **challenge_opts)
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI):

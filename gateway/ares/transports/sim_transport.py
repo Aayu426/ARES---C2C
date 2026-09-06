@@ -29,9 +29,10 @@ TAMPERED_FW = "7a1c0000000000000000000000000000000000000000000000000000000000ff"
 
 
 class VirtualNode:
-    def __init__(self, node_id: str, key: bytes, claims: list[str]) -> None:
+    def __init__(self, node_id: str, key: bytes, claims: list[str], honest_fw: str | None = None) -> None:
         self.node_id = node_id
         self.key = key
+        self.honest_fw = honest_fw or HONEST_FW.get(node_id, "")
         self.claims = claims          # which claims this node witnesses
         self.seq = 0
         self.boot = time.monotonic()
@@ -43,7 +44,7 @@ class VirtualNode:
 
     @property
     def fw(self) -> str:
-        return HONEST_FW.get(self.node_id, "") if self.mode is None else TAMPERED_FW
+        return self.honest_fw if self.mode is None else TAMPERED_FW
 
     def ts(self) -> int:
         return int((time.monotonic() - self.boot) * 1000)
@@ -52,15 +53,16 @@ class VirtualNode:
 class SimTransport(Transport):
     name = "sim"
 
-    def __init__(self, keys: dict[str, bytes], interval: float = 1.0) -> None:
+    def __init__(self, keys: dict[str, bytes], interval: float = 1.0, known_fw: dict[str, str] | None = None) -> None:
         super().__init__()
         self.interval = interval
         self.env = {"person": False, "water": False, "temp": 24.4}
+        fw = known_fw or {}
         self.nodes_by_id: dict[str, VirtualNode] = {
-            "A": VirtualNode("A", keys["A"], ["motion", "temp"]),
-            "B": VirtualNode("B", keys["B"], ["water"]),
-            "C": VirtualNode("C", keys["C"], ["motion", "water"]),
-            "WEBCAM": VirtualNode("WEBCAM", keys["WEBCAM"], ["motion", "water"]),
+            "A": VirtualNode("A", keys["A"], ["motion", "temp"], fw.get("A")),
+            "B": VirtualNode("B", keys["B"], ["water"], fw.get("B")),
+            "C": VirtualNode("C", keys["C"], ["motion", "water"], fw.get("C")),
+            "WEBCAM": VirtualNode("WEBCAM", keys["WEBCAM"], ["motion", "water"], fw.get("WEBCAM")),
         }
         self._task: asyncio.Task | None = None
         self._running = False

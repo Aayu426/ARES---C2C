@@ -32,6 +32,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MIN_PERSON_CONF = 0.5
 WATER_BLUE_FRACTION = 0.08
 REPORT_EVERY = 2.0
+MOVE_PIXELS = 12        # centroid shift that counts as movement
+MOTION_HOLD = 3.0       # seconds motion stays 1 after the last movement (like a PIR's hold time)
 
 # HSV range for blue food colouring under indoor light; widen S/V if the venue is dim
 BLUE_LO = np.array([95, 80, 50])
@@ -78,11 +80,14 @@ class Detectors:
         local = os.path.join(HERE, "yolov8n.pt")
         self.model = YOLO(local if os.path.exists(local) else "yolov8n.pt")   # downloads on first run
 
-    def person(self, frame) -> tuple[int, float]:
+    def person(self, frame) -> tuple[int, float, tuple[float, float] | None]:
+        """(present, confidence, centroid of the most confident person or None)"""
         res = self.model(frame, classes=[0], conf=MIN_PERSON_CONF, verbose=False, imgsz=416)[0]
         if len(res.boxes) == 0:
-            return 0, 0.9
-        return 1, float(res.boxes.conf.max())
+            return 0, 0.9, None
+        i = int(res.boxes.conf.argmax())
+        x1, y1, x2, y2 = res.boxes.xyxy[i].tolist()
+        return 1, float(res.boxes.conf[i]), ((x1 + x2) / 2, (y1 + y2) / 2)
 
     @staticmethod
     def water(frame, roi: np.ndarray | None) -> tuple[int, float]:
@@ -115,6 +120,8 @@ class Witness:
         self.roi = self._load_roi()
         self.cap = None
         self.frame = None
+        self.last_centroid: tuple[float, float] | None = None
+        self.last_move_at = 0.0
 
     def _load_roi(self) -> np.ndarray | None:
         path = os.path.join(HERE, f"roi_{self.node_id}.json")
@@ -158,9 +165,24 @@ class Witness:
             time.sleep(0.2)
             return
         self.frame = frame
-        person, pconf = self.det.person(frame)
+        present, pconf, centroid = self.det.person(frame)
         water, wconf = self.det.water(frame, self.roi)
-        self.send("motion", person, pconf)
+        # motion = a person who moved recently; a person standing still is not motion,
+        # which is exactly what the PIR on node A measures
+        now = time.time()
+        if present and centroid is not None:
+            if self.last_centroid is not None:
+                dx = centroid[0] - self.last_centroid[0]
+                dy = centroid[1] - self.last_centroid[1]
+                if (dx * dx + dy * dy) ** 0.5 >= MOVE_PIXELS:
+                    self.last_move_at = now
+            else:
+                self.last_move_at = now      # a person appearing counts as movement
+            self.last_centroid = centroid
+        else:
+            self.last_centroid = None
+        motion = 1 if now - self.last_move_at < MOTION_HOLD else 0
+        self.send("motion", motion, pconf if present else 0.9)
         if wconf >= 0.6:
             self.send("water", water, wconf)
 
