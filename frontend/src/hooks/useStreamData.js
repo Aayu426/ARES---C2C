@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import useWebSocket from "./useWebSocket";
 import sampleStream from "../data/sample_stream.json";
 
@@ -60,12 +60,12 @@ const INITIAL_NODES = {
     ],
     last: { motion: 0, water: 0 },
   },
-  D: {
-    node_id: "D",
-    name: "Node D",
-    sensorType: "temperature",
-    sensorLabel: "Temperature Sensor",
-    hardware: "ESP32 Probe",
+  WEBCAM: {
+    node_id: "WEBCAM",
+    name: "Webcam Witness",
+    sensorType: "camera",
+    sensorLabel: "Laptop Camera Witness",
+    hardware: "Laptop Camera",
     isSimulated: false,
     state: "TRUSTED",
     identity: 100,
@@ -73,30 +73,11 @@ const INITIAL_NODES = {
     consistency: 100,
     overall: 100,
     recovery: null,
-    lastReason: "Thermal physics bounded (5°C–60°C)",
+    lastReason: "Vision stream verified",
     trustHistory: [
       { time: "00:00", overall: 100, identity: 100, integrity: 100, consistency: 100 },
     ],
-    last: { temp: 24.5 },
-  },
-  "SIM-01": {
-    node_id: "SIM-01",
-    name: "Sim Node 1",
-    sensorType: "vibration",
-    sensorLabel: "Industrial Vibration",
-    hardware: "Simulated Edge",
-    isSimulated: true,
-    state: "TRUSTED",
-    identity: 100,
-    integrity: 100,
-    consistency: 100,
-    overall: 100,
-    recovery: null,
-    lastReason: "Simulated industrial telemetry nominal",
-    trustHistory: [
-      { time: "00:00", overall: 100, identity: 100, integrity: 100, consistency: 100 },
-    ],
-    last: { vibration: 0.12, unit: "g" },
+    last: { motion: 0, water: 0 },
   },
 };
 
@@ -173,16 +154,6 @@ export function useStreamData() {
               ...(event.last || {}),
             },
           };
-
-          // If Node A reports temp telemetry, also keep Node D in sync for the demo
-          if (event.node_id === "A" && event.last?.temp != null && updated.D) {
-            updated.D = {
-              ...updated.D,
-              last: { temp: event.last.temp },
-              state: updated.D.state,
-              overall: updated.D.overall,
-            };
-          }
 
           return updated;
         });
@@ -277,18 +248,22 @@ export function useStreamData() {
       }
 
       case "incident": {
-        setEvents((prev) => [
-          {
-            id: event.id || `inc-${Date.now()}`,
-            type: "INCIDENT",
-            timestamp: nowStr,
-            claim: event.claim,
-            summary: event.summary,
-            message: event.summary || `Incident recorded for claim: ${event.claim}`,
-            raw: event,
-          },
-          ...prev.slice(0, 99),
-        ]);
+        const incidentId = event.id || `inc-${Date.now()}`;
+        setEvents((prev) => {
+          if (prev.some((ev) => ev.id === incidentId)) return prev; // same incident can arrive twice
+          return [
+            {
+              id: incidentId,
+              type: "INCIDENT",
+              timestamp: nowStr,
+              claim: event.claim,
+              summary: event.summary,
+              message: event.summary || `Incident recorded for claim: ${event.claim}`,
+              raw: event,
+            },
+            ...prev.slice(0, 99),
+          ];
+        });
         break;
       }
 
@@ -458,11 +433,25 @@ export function useStreamData() {
     }
   }, []);
 
+  // Defensive: never hand a consumer two events with the same id (would break React
+  // keys). The gateway can re-send an incident across reconnects; keep the first.
+  const uniqueEvents = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const ev of events) {
+      const key = ev.id ?? `${ev.type}-${ev.timestamp}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(ev);
+    }
+    return out;
+  }, [events]);
+
   return {
     nodes,
     selectedNodeId,
     setSelectedNodeId,
-    events,
+    events: uniqueEvents,
     alarm,
     claims,
     conflicts,
