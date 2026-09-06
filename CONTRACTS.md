@@ -158,7 +158,7 @@ Each component keeps a `debt` in 0–100. `component = 100 - debt`.
 | outlier on a claim vs other witnesses   | consistency debt += 30 per cycle (after one free cycle) |
 | physics rule violated                   | consistency debt += 40                  |
 | clean cycle (≥1 valid frame, no bad frame, not an outlier) | every debt -= 2 (repays slowly) |
-| challenge passed                        | that component's debt -= 20             |
+| challenge passed                        | that component's debt -= 20; while RECOVERING every debt -= 10 as well |
 
 Debt never goes below 0 or above 100. **Nothing resets instantly**; recovery is earned.
 
@@ -266,6 +266,7 @@ either way). Every attack is idempotent; `restore` always returns to baseline.
 {"e":"conflict","claim":"motion","witnesses":{"A":0,"WEBCAM":1},"status":"UNKNOWN"}
 {"e":"incident","id":"i-17","claim":"motion","summary":"motion confirmed by C, WEBCAM while A reported none; A failed integrity","ts":1725600000123}
 {"e":"alarm","on":true,"reason":"motion confirmed by C, WEBCAM"}
+{"e":"escalation","node_id":"A","claim":null,"reason":"A is authentic and unmodified but isolated on its claim -> human decision"}
 ```
 
 Aryan builds against `docs/sample_stream.json` (a hand-written 60 s sequence of these

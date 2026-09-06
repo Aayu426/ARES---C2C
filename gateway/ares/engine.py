@@ -16,6 +16,7 @@ import time
 import uuid
 
 from .bus import EventBus
+from .challenges import ChallengeEngine
 from .canonical import new_key_hex, telemetry_canonical, verify, witness_canonical
 from .physics import Physics
 from .store import Store
@@ -77,7 +78,8 @@ class NodeRecord:
 
 
 class Engine:
-    def __init__(self, transport: Transport, store: Store, bus: EventBus, keys: dict[str, bytes], mode: str) -> None:
+    def __init__(self, transport: Transport, store: Store, bus: EventBus, keys: dict[str, bytes], mode: str,
+                 known_fw: dict[str, str] | None = None, **challenge_opts) -> None:
         self.transport = transport
         self.store = store
         self.bus = bus
@@ -89,14 +91,18 @@ class Engine:
         self.alarm = {"on": False, "reason": "baseline"}
         self._tick_task: asyncio.Task | None = None
         self._last_snapshot: dict[str, str] = {}
+        self._incident_n = 0
+        self.challenges = ChallengeEngine(self, known_fw or {}, **challenge_opts)
         transport.on_message(self.on_message)
 
     # ---- lifecycle ----
 
     async def start(self) -> None:
         self._tick_task = asyncio.create_task(self._tick_loop())
+        await self.challenges.start()
 
     async def stop(self) -> None:
+        await self.challenges.stop()
         if self._tick_task:
             self._tick_task.cancel()
 
@@ -178,9 +184,7 @@ class Engine:
         self.bus.publish(event)
 
     async def on_challenge_response(self, node: NodeRecord, msg: dict) -> None:
-        # Phase 3 verifies the signature and closes the challenge.
-        self.bus.publish({"e": "challenge_response_raw", "node_id": node.node_id,
-                          "challenge_id": msg.get("challenge_id")})
+        await self.challenges.on_response(node, msg)
 
     # ---- the 1 s consistency tick ----
 
@@ -257,6 +261,30 @@ class Engine:
             self.bus.publish({"e": "claim", "claim": claim, **new})
             if status == "UNKNOWN":
                 self.bus.publish({"e": "conflict", "claim": claim, "witnesses": {n: int(self.nodes[n].latest[claim][0]) for n in against}, "status": "UNKNOWN"})
+                self.bus.publish({"e": "escalation", "node_id": None, "claim": claim,
+                                  "reason": f"{claim}: witnesses conflict with no majority -> no action, human decision"})
+            new_liars = set(against) - set(prev.get("against", []))
+            if status == "CONFIRMED" and (prev.get("status") != "CONFIRMED" or new_liars):
+                self._incident_n += 1
+                iid = f"i-{self._incident_n}"
+                liars = ", ".join(against) if against else "nobody"
+                summary = f"{claim} confirmed by {', '.join(by)}; {liars} reported none"
+                evidence = {"claim": claim, "by": by, "against": against,
+                            "states": {n: self.nodes[n].trust.state for n in by + against},
+                            "reasons": {n: self.nodes[n].last_reason for n in against}}
+                self.store.add_incident(iid, claim, summary, evidence)
+                self.bus.publish({"e": "incident", "id": iid, "claim": claim, "summary": summary, "evidence": evidence})
+            asyncio.ensure_future(self._update_alarm())
+
+    async def _update_alarm(self) -> None:
+        confirmed = [c for c, v in self.claims.items() if v["status"] == "CONFIRMED"]
+        on = bool(confirmed)
+        reason = ("; ".join(f"{c} confirmed by {', '.join(self.claims[c]['by'])}" for c in confirmed)
+                  if on else "all claims clear")
+        if on != self.alarm["on"] or (on and reason != self.alarm["reason"]):
+            self.alarm = {"on": on, "reason": reason}
+            self.bus.publish({"e": "alarm", "on": on, "reason": reason})
+            await self.transport.send("A", {"t": "alarm", "on": 1 if on else 0, "reason": reason})
 
     def _apply_state(self, node: NodeRecord, reason: str) -> None:
         change = node.trust.update_state()
@@ -268,7 +296,17 @@ class Engine:
             asyncio.ensure_future(self.on_state_change(node, old, new, reason))
 
     async def on_state_change(self, node: NodeRecord, old: str, new: str, reason: str) -> None:
-        """Phase 3 hooks challenges here: SUSPICIOUS → issue a challenge, SHADOW → keep re-testing."""
+        """SUSPICIOUS: challenge immediately, the scheduler handles SHADOW and RECOVERING re-tests."""
+        if new == "SUSPICIOUS" and not any(p.node_id == node.node_id for p in self.challenges.pending.values()):
+            choice = self.challenges.pick(node)
+            if choice:
+                await self.challenges.issue(node, *choice)
+
+    def apply_state(self, node: NodeRecord, reason: str) -> None:
+        self._apply_state(node, reason)
+
+    def publish_node(self, node: NodeRecord, force: bool = False) -> None:
+        self._publish_node(node, force)
 
     def _publish_node(self, node: NodeRecord, force: bool = False) -> None:
         snap = node.snapshot()

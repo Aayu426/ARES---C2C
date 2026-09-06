@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .bus import EventBus
+from .challenges import load_known_fw
 from .engine import Engine, load_keys
 from .store import Store
 from .transports.base import Transport
@@ -30,12 +31,13 @@ class EnvBody(BaseModel):
 
 
 def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str = "keys.json",
-               db_path: str = "ares.db", sim_interval: float = 1.0) -> FastAPI:
+               db_path: str = "ares.db", sim_interval: float = 1.0, known_fw_path: str = "known_fw.json",
+               **challenge_opts) -> FastAPI:
     keys = load_keys(keys_path)
     store = Store(db_path)
     bus = EventBus()
     transport: Transport = SimTransport(keys, sim_interval) if mode == "sim" else SerialTransport(ports or [])
-    engine = Engine(transport, store, bus, keys, mode)
+    engine = Engine(transport, store, bus, keys, mode, known_fw=load_known_fw(known_fw_path), **challenge_opts)
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI):

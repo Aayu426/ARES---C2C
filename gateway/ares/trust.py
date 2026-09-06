@@ -90,6 +90,8 @@ class TrustVector:
     def challenge_passed(self, component: str) -> None:
         self._add(component, -REPAY_CHALLENGE)
         if self.recovering:
+            for k in self.debt:                     # earning the vote back repays every component
+                self._add(k, -REPAY_CHALLENGE / 2)
             self.recovery_passed += 1
             if self.recovery_passed >= RECOVERY_PASSES:
                 self.recovering = False
