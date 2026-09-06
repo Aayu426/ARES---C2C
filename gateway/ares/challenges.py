@@ -192,6 +192,8 @@ class ChallengeEngine:
         else:
             t.integrity_failed()
         self.engine.store.close_challenge(cid, passed, detail)
+        from .engine import LED_CODE  # restore the state LEDs after the challenge blink
+        await self.engine.transport.send(p.node_id, {"t": "led", "code": LED_CODE.get(t.derive_state(), 0)})
         node.last_reason = f"{p.type} challenge {'passed' if passed else 'failed'}: {detail}"
         self.engine.bus.publish({"e": "challenge_result", "node_id": p.node_id, "challenge_id": cid,
                                  "type": p.type, "passed": passed, "detail": detail,

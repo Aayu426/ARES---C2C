@@ -14,6 +14,7 @@ from .challenges import load_known_fw
 from .engine import Engine, load_keys
 from .store import Store
 from .transports.base import Transport
+from .transports.http_transport import HttpTransport, MultiTransport
 from .transports.serial_transport import SerialTransport
 from .transports.sim_transport import SimTransport
 
@@ -36,7 +37,12 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
     keys = load_keys(keys_path)
     store = Store(db_path)
     bus = EventBus()
-    transport: Transport = SimTransport(keys, sim_interval) if mode == "sim" else SerialTransport(ports or [])
+    if mode == "sim":
+        transport: Transport = SimTransport(keys, sim_interval)
+    else:
+        serial_t = SerialTransport(ports or [])
+        http_t = HttpTransport(["C", "WEBCAM"])
+        transport = MultiTransport({"A": serial_t, "B": serial_t, "C": http_t, "WEBCAM": http_t})
     engine = Engine(transport, store, bus, keys, mode, known_fw=load_known_fw(known_fw_path), **challenge_opts)
 
     @contextlib.asynccontextmanager
@@ -67,7 +73,31 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
         """Vision service posts CONTRACTS 3.2 messages here (serial mode)."""
         if msg.get("t") != "wit":
             raise HTTPException(400, "expected a witness message (t == 'wit')")
-        await engine.on_message(msg, "http")
+        http_t = transport.child(HttpTransport) if isinstance(transport, MultiTransport) else None
+        if http_t is not None:
+            await http_t.inbound(msg)
+        else:
+            await engine.on_message(msg, "http")
+        return {"ok": True}
+
+    @app.get("/outbox/{node_id}")
+    async def outbox(node_id: str):
+        """Vision service polls this for challenges and attack commands (serial mode)."""
+        http_t = transport.child(HttpTransport) if isinstance(transport, MultiTransport) else None
+        if http_t is None:
+            return []
+        return http_t.drain(node_id)
+
+    @app.post("/inbox")
+    async def inbox(msg: dict):
+        """Vision service posts challenge responses (and may post witnesses) here."""
+        if msg.get("t") not in ("wit", "resp"):
+            raise HTTPException(400, "expected t == 'wit' or 'resp'")
+        http_t = transport.child(HttpTransport) if isinstance(transport, MultiTransport) else None
+        if http_t is not None:
+            await http_t.inbound(msg)
+        else:
+            await engine.on_message(msg, "http")
         return {"ok": True}
 
     @app.post("/attack")

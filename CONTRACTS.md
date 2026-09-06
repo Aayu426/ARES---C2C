@@ -127,6 +127,19 @@ sees witnesses.**
 Honest firmware ignores `atk`. Malicious firmware reports a **different** `fw` while in
 any attack mode, and the honest one after `restore`.
 
+### 3.7 Status LEDs (gateway → node), on every state change
+
+```json
+{"t":"led","code":2}     // 0 normal · 1 warning (SUSPICIOUS/RECOVERING) · 2 shadow · 3 challenge in progress
+```
+
+### 3.8 HTTP nodes (vision service)
+
+Camera witnesses are not on serial. They post witnesses to `POST /witness`, poll
+`GET /outbox/<node>` (every 0.5 s) for `chal` and `atk` messages, and answer on
+`POST /inbox` with the same `resp` shape as a board. A camera that stops polling for
+10 s is unreachable and its challenges fail.
+
 ---
 
 ## 4. Trust vector
@@ -245,6 +258,8 @@ cannot suppress a claim two other witnesses can see.
 | Method | Path                       | Body / response                                                 |
 |--------|----------------------------|-----------------------------------------------------------------|
 | POST   | `/witness`                 | a §3.2 message (vision service → gateway)                       |
+| GET    | `/outbox/{node}`           | pending `chal` / `atk` messages for an HTTP node (drained on read) |
+| POST   | `/inbox`                   | `resp` (or `wit`) from an HTTP node                             |
 | POST   | `/attack`                  | `{"type":"suppress_motion"\|"suppress_water"\|"spoof"\|"replay"\|"inject"\|"restore","target":"A"\|"B"}` |
 | GET    | `/state`                   | full snapshot: nodes, claims, incidents (dashboard initial load)|
 | GET    | `/explain/{incident_id}`   | `{"text":"…3 sentences…","source":"gemini"\|"template"}`         |

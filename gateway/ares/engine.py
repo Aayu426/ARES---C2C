@@ -30,6 +30,7 @@ FRESH_SECONDS = 3.0                    # a reading older than this does not vote
 MIN_VISION_CONF = 0.6
 OUTLIER_GRACE_CYCLES = 1               # first disagreeing cycle is free (sensor latency)
 TICK_SECONDS = 1.0
+LED_CODE = {"TRUSTED": 0, "SUSPICIOUS": 1, "RECOVERING": 1, "SHADOW": 2}   # status LEDs on the boards
 
 
 def load_keys(path: str) -> dict[str, bytes]:
@@ -297,6 +298,7 @@ class Engine:
 
     async def on_state_change(self, node: NodeRecord, old: str, new: str, reason: str) -> None:
         """SUSPICIOUS: challenge immediately, the scheduler handles SHADOW and RECOVERING re-tests."""
+        await self.transport.send(node.node_id, {"t": "led", "code": LED_CODE.get(new, 0)})
         if new == "SUSPICIOUS" and not any(p.node_id == node.node_id for p in self.challenges.pending.values()):
             choice = self.challenges.pick(node)
             if choice:
