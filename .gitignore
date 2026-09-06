@@ -24,3 +24,7 @@ firmware/**/.pio/
 .idea/
 .DS_Store
 Thumbs.db
+
+# model weights (downloaded on first run)
+*.pt
+vision/roi_*.json

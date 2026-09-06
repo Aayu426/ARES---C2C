@@ -41,6 +41,33 @@ After `suppress_motion`, node A reports `motion: 0` while C and WEBCAM report `1
 After `spoof`, the target's frames fail signature verification and its identity drops
 to 0 on the first bad frame.
 
+## What happens after an attack (sim mode, default timings)
+
+```
+suppress_motion  ->  A is an outlier for 2+ cycles      (~2 s)
+                 ->  SUSPICIOUS, integrity challenge     (~4 s)  "checking firmware, not identity"
+                 ->  fingerprint mismatch -> SHADOW               "authentic but tampered"
+                 ->  motion still CONFIRMED by C, WEBCAM -> alarm on, incident i-N written
+spoof            ->  bad signature -> identity 0 -> SHADOW; challenges fail "impostor"
+inject           ->  80 °C rejected by physics, no action, incident
+restore          ->  RECOVERING 0/10 -> a challenge every 5 s -> TRUSTED at 10/10 (~50 s)
+```
+
+```
+drift            ->  +0.1 °C per interval, every step legal -> drift_detected after ~30 s -> SUSPICIOUS
+replay           ->  captured frames re-sent -> rejected on seq -> SHADOW (a reboot is allowed)
+```
+
+## Numbers and the explain button
+
+```bash
+.venv\Scripts\python measure.py --trials 20 --honest 120      # writes metrics.json, served at /metrics
+set GEMINI_API_KEY=...                                        # optional; /explain falls back to a template
+```
+
+`known_fw.json` holds the known-good firmware fingerprints (defaults match the
+simulator). Aayush replaces them with the SHA-256 of the honest builds.
+
 ## Layout
 
 ```
@@ -50,7 +77,10 @@ ares/transports/serial_transport.py   one reader thread per COM port, NDJSON bot
 ares/transports/sim_transport.py      virtual A, B, C, WEBCAM + attacks
 ares/store.py                SQLite tables
 ares/bus.py                  event bus -> WebSocket clients
-ares/engine.py               ingest, verify, normalise to witnesses (trust engine lands here in Phase 2)
+ares/trust.py                trust vector with debt + state machine
+ares/physics.py              plausibility rules
+ares/challenges.py           Adaptive Challenge Engine, known-good firmware table
+ares/engine.py               ingest, verify, normalise to witnesses, consistency tick, consensus, alarm, incidents
 ares/app.py                  FastAPI
 run.py                       entrypoint
 ```

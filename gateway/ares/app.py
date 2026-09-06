@@ -10,9 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .bus import EventBus
+from .challenges import load_known_fw
 from .engine import Engine, load_keys
+from .explain import explain
+import json, os
 from .store import Store
 from .transports.base import Transport
+from .transports.http_transport import HttpTransport, MultiTransport
 from .transports.serial_transport import SerialTransport
 from .transports.sim_transport import SimTransport
 
@@ -30,18 +34,26 @@ class EnvBody(BaseModel):
 
 
 def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str = "keys.json",
-               db_path: str = "ares.db", sim_interval: float = 1.0) -> FastAPI:
+               db_path: str = "ares.db", sim_interval: float = 1.0, known_fw_path: str = "known_fw.json",
+               **challenge_opts) -> FastAPI:
     keys = load_keys(keys_path)
     store = Store(db_path)
     bus = EventBus()
-    transport: Transport = SimTransport(keys, sim_interval) if mode == "sim" else SerialTransport(ports or [])
-    engine = Engine(transport, store, bus, keys, mode)
+    if mode == "sim":
+        transport: Transport = SimTransport(keys, sim_interval)
+    else:
+        serial_t = SerialTransport(ports or [])
+        http_t = HttpTransport(["C", "WEBCAM"])
+        transport = MultiTransport({"A": serial_t, "B": serial_t, "C": http_t, "WEBCAM": http_t})
+    engine = Engine(transport, store, bus, keys, mode, known_fw=load_known_fw(known_fw_path), **challenge_opts)
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI):
         await transport.start(asyncio.get_running_loop())
+        await engine.start()
         print(f"[ares] gateway up in {mode} mode")
         yield
+        await engine.stop()
         await transport.stop()
 
     app = FastAPI(title="ARES gateway", lifespan=lifespan)
@@ -63,8 +75,38 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
         """Vision service posts CONTRACTS 3.2 messages here (serial mode)."""
         if msg.get("t") != "wit":
             raise HTTPException(400, "expected a witness message (t == 'wit')")
-        await engine.on_message(msg, "http")
+        http_t = transport.child(HttpTransport) if isinstance(transport, MultiTransport) else None
+        if http_t is not None:
+            await http_t.inbound(msg)
+        else:
+            await engine.on_message(msg, "http")
         return {"ok": True}
+
+    @app.get("/outbox/{node_id}")
+    async def outbox(node_id: str):
+        """Vision service polls this for challenges and attack commands (serial mode)."""
+        http_t = transport.child(HttpTransport) if isinstance(transport, MultiTransport) else None
+        if http_t is None:
+            return []
+        return http_t.drain(node_id)
+
+    @app.post("/inbox")
+    async def inbox(msg: dict):
+        """Vision service posts challenge responses (and may post witnesses) here."""
+        if msg.get("t") not in ("wit", "resp", "tel"):
+            raise HTTPException(400, "expected t == 'wit', 'resp' or 'tel'")
+        http_t = transport.child(HttpTransport) if isinstance(transport, MultiTransport) else None
+        if http_t is not None:
+            await http_t.inbound(msg)
+        else:
+            await engine.on_message(msg, "http")
+        return {"ok": True}
+
+    @app.get("/capture/{node_id}")
+    async def capture(node_id: str, n: int = 5):
+        """Last valid raw frames from a node, signatures included: what an attacker on the
+        wire would have captured. Used by attacks/replay.py."""
+        return store.recent_telemetry(node_id, n)
 
     @app.post("/attack")
     async def attack(body: AttackBody):
@@ -77,6 +119,23 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
         if not isinstance(transport, SimTransport):
             raise HTTPException(400, "not in sim mode")
         return {"ok": True, "env": transport.set_env(person=body.person, water=body.water, temp=body.temp)}
+
+    @app.get("/explain/{incident_id}")
+    async def explain_incident(incident_id: str):
+        """Advisory only: reads logged evidence, returns three sentences. Never writes."""
+        incident = store.get_incident(incident_id)
+        if incident is None:
+            raise HTTPException(404, f"no incident {incident_id}")
+        return {"incident_id": incident_id, **explain(incident)}
+
+    @app.get("/metrics")
+    async def metrics():
+        """Output of measure.py (detection latency, catch rate, false positives)."""
+        path = os.path.join(os.path.dirname(db_path) or ".", "metrics.json")
+        if not os.path.exists(path):
+            return {"available": False, "hint": "run: python measure.py"}
+        with open(path, encoding="utf-8") as fh:
+            return {"available": True, **json.load(fh)}
 
     @app.get("/events/recent")
     async def recent():
