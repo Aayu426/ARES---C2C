@@ -1,0 +1,26 @@
+# secrets — never commit keys
+gateway/keys.json
+firmware/**/secrets.h
+vision/keys.json
+.env
+
+# python
+gateway/.venv/
+vision/.venv/
+__pycache__/
+*.pyc
+*.db
+*.db-journal
+
+# node
+node_modules/
+dashboard/dist/
+
+# platformio
+firmware/**/.pio/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
