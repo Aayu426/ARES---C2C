@@ -175,15 +175,15 @@ function OverviewView({
           <div className="action-button-list">
             <button className="overview-btn" onClick={() => onNavigate("mesh")}>
               <Radio size={16} />
-              <span>Inspect Full-Stage Mesh Topology</span>
+              <span>Inspect Mesh Intelligence</span>
             </button>
-            <button className="overview-btn" onClick={() => onNavigate("attacks")}>
-              <Zap size={16} className="text-amber" />
-              <span>Launch Judge Adversarial Attack Panel</span>
+            <button className="overview-btn" onClick={() => onNavigate("consensus")}>
+              <ShieldCheck size={16} className="text-green" />
+              <span>Review Consensus Decisions</span>
             </button>
-            <button className="overview-btn" onClick={() => onNavigate("challenges")}>
-              <ShieldAlert size={16} />
-              <span>Audit Live Adaptive Challenge Engine</span>
+            <button className="overview-btn" onClick={() => onNavigate("incidents")}>
+              <AlertTriangle size={16} className="text-amber" />
+              <span>Open Forensic Audit Log</span>
             </button>
           </div>
         </div>

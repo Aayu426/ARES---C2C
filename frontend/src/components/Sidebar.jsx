@@ -5,10 +5,6 @@ import {
   Radio,
   Cpu,
   Users,
-  ShieldAlert,
-  Zap,
-  FastForward,
-  BarChart3,
   History,
   Menu,
   X,
@@ -16,13 +12,9 @@ import {
 
 const NAV_ITEMS = [
   { id: "overview", label: "Overview", icon: <Layers size={18} /> },
-  { id: "mesh", label: "Mesh Topology", icon: <Radio size={18} /> },
+  { id: "mesh", label: "Mesh Intelligence", icon: <Radio size={18} /> },
   { id: "inspector", label: "Node Inspector", icon: <Cpu size={18} /> },
-  { id: "consensus", label: "Consensus Quorum", icon: <Users size={18} /> },
-  { id: "challenges", label: "Adaptive Challenges", icon: <ShieldAlert size={18} /> },
-  { id: "attacks", label: "Judge Attack Panel", icon: <Zap size={18} /> },
-  { id: "drift", label: "Drift Simulator", icon: <FastForward size={18} /> },
-  { id: "metrics", label: "Verification Metrics", icon: <BarChart3 size={18} /> },
+  { id: "consensus", label: "Consensus", icon: <Users size={18} /> },
   { id: "incidents", label: "Forensic Audit Log", icon: <History size={18} /> },
 ];
 

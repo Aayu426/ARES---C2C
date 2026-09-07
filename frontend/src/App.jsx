@@ -4,10 +4,6 @@ import OverviewView from "./views/OverviewView";
 import MeshView from "./views/MeshView";
 import InspectorView from "./views/InspectorView";
 import ConsensusView from "./views/ConsensusView";
-import ChallengesView from "./views/ChallengesView";
-import AttacksView from "./views/AttacksView";
-import DriftView from "./views/DriftView";
-import MetricsView from "./views/MetricsView";
 import IncidentsView from "./views/IncidentsView";
 import useStreamData from "./hooks/useStreamData";
 import "./App.css";
@@ -26,12 +22,10 @@ function App() {
     alarm,
     claims,
     conflicts,
-    metrics,
     aiExplanation,
     isExplaining,
     isConnected,
     isReplaying,
-    triggerAttack,
     explainIncident,
     setAiExplanation,
   } = useStreamData();
@@ -91,24 +85,6 @@ function App() {
           />
         );
 
-      case "challenges":
-        return <ChallengesView events={events} />;
-
-      case "attacks":
-        return (
-          <AttacksView
-            onTriggerAttack={triggerAttack}
-            isConnected={isConnected}
-            nodes={nodes}
-          />
-        );
-
-      case "drift":
-        return <DriftView />;
-
-      case "metrics":
-        return <MetricsView metrics={metrics} />;
-
       case "incidents":
         return (
           <IncidentsView
@@ -142,7 +118,6 @@ function App() {
         onSelectView={handleSelectView}
         isConnected={isConnected}
         isReplaying={isReplaying}
-        onSwitchPhoneMode={() => handleSelectView("attacks")}
       />
 
       {/* Main Multi-View Content Stage */}
