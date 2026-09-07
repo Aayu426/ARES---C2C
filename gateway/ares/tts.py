@@ -10,9 +10,9 @@ import json
 import os
 import urllib.request
 
-# Default voice "Rachel" — a clear, neutral ElevenLabs stock voice. Override with
+# Default voice "Roger" — a clear voice usable on the ElevenLabs free API tier. Override with
 # ELEVENLABS_VOICE_ID if you pick another from the ElevenLabs voice library.
-DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM"
+DEFAULT_VOICE = "CwhRBWXzGAHq8TQ4Fs17"  # Roger — usable on the ElevenLabs free API tier
 ELEVEN_MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_turbo_v2_5")
 
 

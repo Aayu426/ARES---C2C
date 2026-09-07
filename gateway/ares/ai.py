@@ -60,7 +60,8 @@ ASK_SYSTEM = (
     "Be concise: two or three plain sentences, no headings, no bullet points, no markdown. "
     "Explain what happened, which node and claim were involved, and what ARES did. "
     "The AI is advisory only and never decides; recommend only physical inspection. "
-    "If the evidence does not contain the answer, say so plainly."
+    "Never quote raw numeric timestamps, epoch times, or internal incident IDs; refer to events "
+    "in plain language. If the evidence does not contain the answer, say so plainly."
 )
 
 
