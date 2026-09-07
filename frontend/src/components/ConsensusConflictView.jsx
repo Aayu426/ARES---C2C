@@ -3,32 +3,29 @@ import { Users, AlertTriangle, CheckCircle2, UserCheck, HelpCircle } from "lucid
 
 /**
  * Consensus & Conflict View
- * Visualizes 2-against-1 multi-witness consensus vs physics evidence.
+ * Visualizes multi-witness consensus vs physics evidence.
  * Highlights UNKNOWN / Awaiting Human intervention states.
  */
 function ConsensusConflictView({ nodes = {}, claims = {}, conflicts = {} }) {
-  const nodeA = nodes.A || {};
-  const nodeB = nodes.B || {};
-  const nodeC = nodes.C || {};
-  const webcam = nodes.WEBCAM || {};
+  // Build each claim's witnesses from the LIVE mesh: any node that actually reports
+  // this claim votes on it. Adapts to the real hardware (Node A = PIR + water,
+  // WEBCAM = laptop vision) and to the simulator (which also emits B/C) without
+  // hardcoding a fixed roster or a phantom ESP32-CAM that no longer exists.
+  const witnessesFor = (claim) =>
+    Object.values(nodes)
+      .filter(
+        (n) => n.last && n.last[claim] !== undefined && n.last[claim] !== null
+      )
+      .map((n) => ({
+        id: n.node_id,
+        name: n.sensorLabel || n.name || n.node_id,
+        value: n.last[claim] ?? 0,
+        state: n.state,
+      }));
 
-  // Only show witnesses that actually exist in the mesh (Node C is absent in the
-  // webcam-only setup; present in the simulator).
-  const present = (id) => Boolean(nodes[id]);
-
-  // Motion Claim Consensus
-  const motionWitnesses = [
-    { id: "A", name: "ESP32 PIR", value: nodeA.last?.motion ?? 0, state: nodeA.state },
-    { id: "C", name: "ESP32-CAM", value: nodeC.last?.motion ?? 0, state: nodeC.state },
-    { id: "WEBCAM", name: "Webcam Vision", value: webcam.last?.motion ?? 0, state: webcam.state },
-  ].filter((w) => present(w.id));
-
-  // Water Claim Consensus
-  const waterWitnesses = [
-    { id: "B", name: "Water Sensor", value: nodeB.last?.water ?? 0, state: nodeB.state },
-    { id: "C", name: "ESP32-CAM", value: nodeC.last?.water ?? 0, state: nodeC.state },
-    { id: "WEBCAM", name: "Webcam Vision", value: webcam.last?.water ?? 0, state: webcam.state },
-  ].filter((w) => present(w.id));
+  const motionWitnesses = witnessesFor("motion");
+  const waterWitnesses = witnessesFor("water");
+  const quorumSize = Math.max(motionWitnesses.length, waterWitnesses.length);
 
   const hasConflict = Object.keys(conflicts).length > 0;
 
@@ -47,7 +44,7 @@ function ConsensusConflictView({ nodes = {}, claims = {}, conflicts = {} }) {
         ) : (
           <div className="conflict-tag-pill normal">
             <CheckCircle2 size={14} />
-            <span>CONSENSUS RESOLVED (2-OF-3 QUORUM)</span>
+            <span>CONSENSUS RESOLVED · {quorumSize}-WITNESS QUORUM</span>
           </div>
         )}
       </div>

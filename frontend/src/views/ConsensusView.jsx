@@ -10,13 +10,13 @@ function ConsensusView({ nodes = {}, claims = {}, conflicts = {} }) {
           <p className="eyebrow">CONSENSUS & WITNESS CORROBORATION</p>
           <h2>Multi-Witness Quorum & Conflict Resolution</h2>
           <p className="subtitle">
-            A single shadowed liar cannot suppress a claim two other witnesses can see. 2-against-1 majority voting for motion and water claims.
+            A single shadowed liar cannot suppress a claim that independent witnesses can corroborate. Majority voting across the live witnesses for motion and water claims.
           </p>
         </div>
 
         <div className="view-badge-info">
           <Users size={16} />
-          <span>2-OF-3 QUORUM VERIFICATION</span>
+          <span>MULTI-WITNESS QUORUM</span>
         </div>
       </div>
 
