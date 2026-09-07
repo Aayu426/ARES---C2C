@@ -45,5 +45,5 @@ def explain(incident: dict) -> dict:
     text = _model(incident)
     if text:
         import os
-        return {"text": text, "source": "groq", "model": os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")}
+        return {"text": text, "source": "groq", "model": os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")}
     return {"text": template(incident), "source": "template"}

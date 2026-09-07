@@ -15,7 +15,7 @@ import os
 import urllib.request
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ARES-Gateway/1.0"
 
 
