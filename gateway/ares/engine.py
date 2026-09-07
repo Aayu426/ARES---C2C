@@ -70,6 +70,7 @@ class NodeRecord:
         self.fw_detail = "not yet attested"
         self.silent_compromise = False             # firmware tampered while data stayed nominal
         self.last_attested: float | None = None
+        self.forced_tamper = False                 # sleeper attack injected on real hardware
 
     @property
     def online(self) -> bool:
@@ -436,11 +437,19 @@ class Engine:
         mode, node_id = mapping[type_]
         self.bus.publish({"e": "incident", "id": f"atk-{uuid.uuid4().hex[:6]}", "claim": "attack",
                           "summary": f"judge pressed {type_.upper()} on {node_id}"})
+        if type_ == "sleeper":
+            # works on real hardware too: the gateway marks the node's firmware as tampered,
+            # so the next attestation fails even though the board reports an honest fingerprint.
+            node = self.nodes[node_id]
+            node.forced_tamper = True
+            asyncio.ensure_future(self.challenges.issue(node, "integrity", "attestation after injected firmware tamper"))
+            return f"sleeper firmware-tamper injected on {node_id}"
         msg = {"t": "atk", "mode": mode}
         if temp is not None:
             msg["temp"] = temp
         if type_ == "restore":
             for n in self.nodes.values():
+                n.forced_tamper = False
                 if n.trust.state in ("SHADOW", "SUSPICIOUS"):
                     n.trust.start_recovery()
                     n.last_reason = "restored: must pass 10 consecutive challenges before voting"

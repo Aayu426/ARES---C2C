@@ -190,7 +190,9 @@ class ChallengeEngine:
             await self._resolve(cid, True, "nonce signed with the node's key: identity real")
             return
         expected = self.known_fw.get(node.node_id, "")
-        if fw and fw == expected:
+        if getattr(node, "forced_tamper", False):
+            await self._resolve(cid, False, "firmware fingerprint tampered by injected compromise: does not match known-good")
+        elif fw and fw == expected:
             await self._resolve(cid, True, "firmware fingerprint matches known-good")
         else:
             await self._resolve(cid, False, f"fingerprint {fw[:8]}… does not match known-good {expected[:8]}…: authentic but tampered")
