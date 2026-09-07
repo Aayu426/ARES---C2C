@@ -1,0 +1,5 @@
+// Copy to wifi_config.h (git-ignored) and fill in your laptop hotspot's credentials.
+// The ESP32-CAM node and the laptop must be on the SAME 2.4 GHz hotspot.
+#pragma once
+#define WIFI_SSID "YOUR_HOTSPOT_NAME"
+#define WIFI_PASS "YOUR_HOTSPOT_PASSWORD"

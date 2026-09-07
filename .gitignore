@@ -28,3 +28,7 @@ Thumbs.db
 # model weights (downloaded on first run)
 *.pt
 vision/roi_*.json
+
+# camera wifi creds
+firmware-cam/include/wifi_config.h
+firmware-cam/.pio/
