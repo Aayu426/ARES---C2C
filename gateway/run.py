@@ -15,7 +15,22 @@ import uvicorn
 from ares.app import create_app
 
 
+def load_secrets(path: str = "secrets.env") -> None:
+    """Load KEY=VALUE lines from a git-ignored secrets file into the environment,
+    so GROQ_API_KEY / ELEVENLABS_API_KEY reach the AI and TTS modules. Never committed."""
+    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    if not os.path.exists(here):
+        return
+    for line in open(here, encoding="utf-8"):
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        os.environ.setdefault(k.strip(), v.strip())
+
+
 def main() -> None:
+    load_secrets()
     parser = argparse.ArgumentParser(description="ARES gateway")
     parser.add_argument("--mode", choices=["sim", "serial"], default="sim")
     parser.add_argument("--ports", default="", help="comma-separated COM ports for serial mode")

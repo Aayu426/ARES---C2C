@@ -2,6 +2,7 @@ import { memo } from "react";
 import { History, Bell, Sparkles } from "lucide-react";
 import EventTimeline from "../components/EventTimeline";
 import ExplainIncidentModal from "../components/ExplainIncidentModal";
+import AuditLogAssistant from "../components/AuditLogAssistant";
 
 function IncidentsView({
   events = [],
@@ -19,7 +20,7 @@ function IncidentsView({
       <div className="view-header">
         <div>
           <p className="eyebrow">FORENSIC AUDIT & AI EXPLAINABILITY</p>
-          <h2>System Incidents & Gemini AI Explanation</h2>
+          <h2>System Incidents & AI Explanation</h2>
           <p className="subtitle">
             Cryptographic event timeline recording challenges, state transitions, consensus votes, and advisory AI forensic reconstruction.
           </p>
@@ -31,7 +32,10 @@ function IncidentsView({
         </div>
       </div>
 
-      {/* Gemini AI Incident Explainer */}
+      {/* Ask-the-audit-log assistant (Groq + optional ElevenLabs voice) */}
+      <AuditLogAssistant />
+
+      {/* AI Incident Explainer */}
       <div className="ai-explainer-section-wrapper">
         <ExplainIncidentModal
           explanation={aiExplanation}

@@ -7,12 +7,15 @@ import contextlib
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from .bus import EventBus
 from .challenges import load_known_fw
 from .engine import Engine, load_keys
 from .explain import explain
+from .ai import answer_question
+from . import tts
 import json, os
 from .store import Store
 from .transports.base import Transport
@@ -32,6 +35,14 @@ class EnvBody(BaseModel):
     person: bool | None = None
     water: bool | None = None
     temp: float | None = None
+
+
+class AskBody(BaseModel):
+    question: str
+
+
+class TtsBody(BaseModel):
+    text: str
 
 
 def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str = "keys.json",
@@ -136,6 +147,29 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
         if incident is None:
             raise HTTPException(404, f"no incident {incident_id}")
         return {"incident_id": incident_id, **explain(incident)}
+
+    @app.post("/ask")
+    async def ask(body: AskBody):
+        """Audit-log Q&A. Advisory only: reads recent incidents, returns a short answer.
+        Uses Groq when GROQ_API_KEY is set, otherwise a deterministic template."""
+        q = (body.question or "").strip()
+        if not q:
+            raise HTTPException(400, "empty question")
+        incidents = store.recent_incidents(20)
+        return answer_question(q, incidents)
+
+    @app.get("/voice/available")
+    async def voice_available():
+        """Frontend checks this to show/hide the Listen button."""
+        return {"available": tts.available()}
+
+    @app.post("/tts")
+    async def text_to_speech(body: TtsBody):
+        """Turn answer text into ElevenLabs speech (MP3). 503 when no key is configured."""
+        audio = tts.synthesize(body.text or "")
+        if audio is None:
+            raise HTTPException(503, "voice unavailable: set ELEVENLABS_API_KEY")
+        return Response(content=audio, media_type="audio/mpeg")
 
     @app.get("/metrics")
     async def metrics():

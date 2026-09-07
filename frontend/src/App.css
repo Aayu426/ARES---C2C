@@ -2162,3 +2162,94 @@ button {
   from { background: rgba(224, 108, 117, 0.35); }
   to   { background: rgba(224, 108, 117, 0.12); }
 }
+
+/* ==========================================================================
+   AUDIT-LOG ASSISTANT (Ask the Audit Log — Groq + ElevenLabs voice)
+   ========================================================================== */
+.audit-assistant-card {
+  background: linear-gradient(180deg, rgba(20, 30, 45, 0.65), rgba(12, 18, 28, 0.65));
+  border: 1px solid #1c2a3d;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.assistant-heading-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.assistant-heading-row h3 { margin: 0; font-size: 17px; }
+.assistant-sub { margin: 3px 0 0; font-size: 12.5px; color: #8b9bb0; }
+.assistant-input-row { display: flex; gap: 10px; }
+.assistant-input {
+  flex: 1;
+  background: #0b111a;
+  border: 1px solid #24344a;
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #e8edf5;
+  font-size: 14px;
+  outline: none;
+}
+.assistant-input:focus { border-color: #3d7bd6; }
+.assistant-ask-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #2f6fd0;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.assistant-ask-btn:disabled { opacity: 0.6; cursor: default; }
+.assistant-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.assistant-chip {
+  background: #121c2a;
+  border: 1px solid #24344a;
+  color: #9db0c8;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.assistant-chip:hover { border-color: #3d7bd6; color: #cfe0f5; }
+.assistant-error { margin-top: 14px; color: #f0836b; font-size: 13px; }
+.assistant-answer {
+  margin-top: 16px;
+  background: #0b121c;
+  border: 1px solid #1e2c3f;
+  border-left: 3px solid #2f6fd0;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.assistant-answer p { margin: 0; line-height: 1.55; color: #dbe6f4; font-size: 14.5px; }
+.assistant-answer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.assistant-source { font-size: 10.5px; letter-spacing: 0.6px; font-weight: 700; }
+.assistant-source.src-live { color: #58c98a; }
+.assistant-source.src-template { color: #b8863f; }
+.assistant-listen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #17324e;
+  color: #8fd0ff;
+  border: 1px solid #2b557f;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.assistant-listen-btn:disabled { opacity: 0.6; cursor: default; }
+.spin { animation: assistant-spin 0.9s linear infinite; }
+@keyframes assistant-spin { to { transform: rotate(360deg); } }

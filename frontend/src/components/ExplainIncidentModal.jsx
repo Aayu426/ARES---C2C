@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Sparkles, Bot, AlertTriangle, X, ShieldAlert } from "lucide-react";
 
 /**
- * Gemini AI Incident Explanation Panel / Modal
+ * AI Incident Explanation Panel / Modal (Groq)
  * Displays natural language breakdown of incidents.
  * CRITICAL RULE: Strictly labeled "ADVISORY ONLY · AI NEVER DECIDES".
  */
@@ -20,7 +20,7 @@ function ExplainIncidentModal({
           <Sparkles size={18} className="text-amber" />
           <div>
             <h4>ADAPTIVE INCIDENT EXPLAINER</h4>
-            <span>Gemini LLM Forensic Reconstruction</span>
+            <span>Groq LLM Forensic Reconstruction</span>
           </div>
         </div>
 
@@ -41,7 +41,7 @@ function ExplainIncidentModal({
             <div className="ai-source-meta">
               <Bot size={15} />
               <span>
-                MODEL: {explanation.source?.toUpperCase() || "GEMINI"} · INCIDENT:{" "}
+                MODEL: {explanation.source?.toUpperCase() || "GROQ"} · INCIDENT:{" "}
                 {explanation.incidentId}
               </span>
             </div>
@@ -64,7 +64,7 @@ function ExplainIncidentModal({
               onClick={() => onTriggerExplain(latestIncidentId)}
             >
               <Sparkles size={16} />
-              <span>EXPLAIN LATEST INCIDENT WITH GEMINI</span>
+              <span>EXPLAIN LATEST INCIDENT WITH GROQ</span>
             </button>
           </div>
         )}
