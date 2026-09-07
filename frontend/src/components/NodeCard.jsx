@@ -77,6 +77,36 @@ function NodeCard({ sensorType, node }) {
       break;
     }
 
+    case "sensor": {
+      title = "SENSOR NODE (PIR + WATER)";
+      subtitle = `NODE ${node.node_id} · ${node.hardware || "ESP32"}`;
+      PrimaryIcon = Activity;
+      const motionVal = node.last?.motion;
+      const waterVal = node.last?.water;
+      const isMotion = motionVal === 1 || motionVal === true;
+      const isWater = waterVal === 1 || waterVal === true;
+      readings = [
+        {
+          icon: <Activity size={15} />,
+          label: "MOTION (PIR)",
+          value: isMotion ? "DETECTED" : "CLEAR",
+          highlight: isMotion ? "text-amber" : "text-green",
+        },
+        {
+          icon: <Droplets size={15} />,
+          label: "WATER",
+          value: isWater ? "DETECTED" : "DRY",
+          highlight: isWater ? "text-blue" : "text-green",
+        },
+        {
+          icon: <Cpu size={15} />,
+          label: "WITNESS ROLE",
+          value: "MOTION + WATER",
+        },
+      ];
+      break;
+    }
+
     case "pir":
     case "motion": {
       title = "PIR / MOTION SENSOR";

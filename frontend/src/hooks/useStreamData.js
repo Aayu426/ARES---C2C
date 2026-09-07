@@ -6,8 +6,8 @@ const INITIAL_NODES = {
   A: {
     node_id: "A",
     name: "Node A",
-    sensorType: "motion",
-    sensorLabel: "PIR Motion Sensor",
+    sensorType: "sensor",
+    sensorLabel: "PIR + Water Sensor",
     hardware: "ESP32 #1",
     isSimulated: false,
     state: "TRUSTED",
@@ -20,29 +20,10 @@ const INITIAL_NODES = {
     trustHistory: [
       { time: "00:00", overall: 100, identity: 100, integrity: 100, consistency: 100 },
     ],
-    last: { motion: 0 },
+    last: { motion: 0, water: 0 },
   },
-  B: {
-    node_id: "B",
-    name: "Node B",
-    sensorType: "water",
-    sensorLabel: "Water / Liquid Sensor",
-    hardware: "ESP32 #2",
-    isSimulated: false,
-    state: "TRUSTED",
-    identity: 100,
-    integrity: 100,
-    consistency: 100,
-    overall: 100,
-    recovery: null,
-    lastReason: "Initial baseline verified",
-    trustHistory: [
-      { time: "00:00", overall: 100, identity: 100, integrity: 100, consistency: 100 },
-    ],
-    last: { water: 0 },
-  },
-  // Node C (ESP32-CAM) is not deployed — webcam-only. It appears automatically if a
-  // camera streams in (the gateway sends node_update for C and the node is created).
+  // Node A is the consolidated sensor board (PIR + water on one ESP32). Node B is retired.
+  // Node C (ESP32-CAM) is not deployed — webcam-only.
   WEBCAM: {
     node_id: "WEBCAM",
     name: "Webcam Witness",

@@ -107,7 +107,9 @@ function OverviewView({
                 <div className="summary-reading-row">
                   <span>MEASUREMENT:</span>
                   <strong>
-                    {node.last?.motion !== undefined
+                    {node.last?.motion !== undefined && node.last?.water !== undefined
+                      ? `${node.last.motion ? "MOTION" : "CLEAR"} · ${node.last.water ? "WET" : "DRY"}`
+                      : node.last?.motion !== undefined
                       ? node.last.motion ? "MOTION (1)" : "CLEAR (0)"
                       : node.last?.water !== undefined
                       ? node.last.water ? "WET (1)" : "DRY (0)"
