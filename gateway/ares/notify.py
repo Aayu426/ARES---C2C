@@ -37,35 +37,60 @@ def _post(url: str, payload: dict) -> None:
         print(f"[notify] n8n webhook failed: {exc!r}", flush=True)
 
 
+COOLDOWN = 20.0   # at most one alert per (event, node, type) in this window, so a burst attack = one email
+
+
+def _alert_for(ev: dict) -> dict | None:
+    """Turn a bus event into an alert payload, or None if it isn't an emailable security event."""
+    e = ev.get("e")
+    if e == "incident":
+        # real security incidents only (attack / replay / physics / drift / sleeper),
+        # not routine consensus confirmations (id prefix "i-")
+        iid = str(ev.get("id") or "")
+        if not iid.startswith(("atk-", "rep-", "phy-", "drf-", "slp-")):
+            return None
+        summary = str(ev.get("summary") or "")
+        claim = str(ev.get("claim") or "")
+        return {"node": ev.get("node_id"), "type": claim or "incident",
+                "severity": _severity(summary, claim), "summary": summary,
+                "incident_id": ev.get("id")}
+    if e == "identity_failure":
+        # a forged frame refused — the MQTT / spoof network attack
+        node = ev.get("node_id")
+        detail = str(ev.get("detail") or "invalid signature")
+        attempted = ev.get("attempted") or {}
+        network = "network (MQTT)" if "mqtt" in str(ev.get("source") or "") else "serial/local"
+        summary = (f"FORGED FRAME REFUSED on {node}: {detail}. "
+                   f"Attempted {attempted or 'unsigned frame'}. Source: {network}.")
+        return {"node": node, "type": "identity", "severity": "HIGH",
+                "summary": summary, "incident_id": None}
+    return None
+
+
 async def n8n_forwarder(bus) -> None:
     """Subscribe to the event bus and forward security incidents to n8n."""
     q = bus.subscribe()
+    last_sent: dict[tuple, float] = {}
     print("[notify] n8n incident forwarder running (set N8N_WEBHOOK_URL to enable)", flush=True)
     try:
         while True:
             ev = await q.get()
-            if ev.get("e") != "incident":
-                continue
-            # forward only real security incidents (attack / replay / physics / drift / sleeper),
-            # not routine consensus confirmations (id prefix "i-")
-            iid = str(ev.get("id") or "")
-            if not iid.startswith(("atk-", "rep-", "phy-", "drf-", "slp-")):
+            alert = _alert_for(ev)
+            if alert is None:
                 continue
             url = os.environ.get("N8N_WEBHOOK_URL")
             if not url:
                 continue
-            summary = str(ev.get("summary") or "")
-            claim = str(ev.get("claim") or "")
+            now = time.time()
+            key = (ev.get("e"), alert["node"], alert["type"])
+            if now - last_sent.get(key, 0) < COOLDOWN:
+                continue
+            last_sent[key] = now
             payload = {
                 "alert": "ARES SECURITY INCIDENT",
-                "incident_id": ev.get("id"),
-                "node": ev.get("node_id"),
-                "type": claim,
-                "severity": _severity(summary, claim),
-                "summary": summary,
-                "detail": ev.get("detail"),
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ev.get("at", time.time()))),
                 "system": "ARES Adaptive Trust Mesh",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ev.get("at", now))),
+                **alert,
             }
             await asyncio.to_thread(_post, url, payload)
     except asyncio.CancelledError:
