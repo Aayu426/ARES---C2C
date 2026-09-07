@@ -6,7 +6,14 @@ import { Zap, ShieldCheck, Flame, RotateCcw, Copy, Play, Smartphone } from "luci
  * Provides 6 direct attack injection actions with target node selection
  * and mobile-responsive layout for phones.
  */
-function AttackPanel({ onTriggerAttack, isConnected }) {
+const TARGET_LABELS = [
+  ["A", "Node A (PIR + Temp)"],
+  ["B", "Node B (Water)"],
+  ["C", "Node C (ESP32-CAM)"],
+  ["WEBCAM", "WEBCAM (Laptop)"],
+];
+
+function AttackPanel({ onTriggerAttack, isConnected, nodes }) {
   const [selectedTarget, setSelectedTarget] = useState("A");
   const [statusMessage, setStatusMessage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -96,10 +103,9 @@ function AttackPanel({ onTriggerAttack, isConnected }) {
             onChange={(e) => setSelectedTarget(e.target.value)}
             className="target-select"
           >
-            <option value="A">Node A (PIR + Temp)</option>
-            <option value="B">Node B (Water)</option>
-            <option value="C">Node C (ESP32-CAM)</option>
-            <option value="WEBCAM">WEBCAM (Laptop)</option>
+            {TARGET_LABELS.filter(([id]) => !nodes || nodes[id]).map(([id, label]) => (
+              <option key={id} value={id}>{label}</option>
+            ))}
           </select>
         </div>
       </div>

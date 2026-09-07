@@ -12,19 +12,23 @@ function ConsensusConflictView({ nodes = {}, claims = {}, conflicts = {} }) {
   const nodeC = nodes.C || {};
   const webcam = nodes.WEBCAM || {};
 
+  // Only show witnesses that actually exist in the mesh (Node C is absent in the
+  // webcam-only setup; present in the simulator).
+  const present = (id) => Boolean(nodes[id]);
+
   // Motion Claim Consensus
   const motionWitnesses = [
     { id: "A", name: "ESP32 PIR", value: nodeA.last?.motion ?? 0, state: nodeA.state },
     { id: "C", name: "ESP32-CAM", value: nodeC.last?.motion ?? 0, state: nodeC.state },
     { id: "WEBCAM", name: "Webcam Vision", value: webcam.last?.motion ?? 0, state: webcam.state },
-  ];
+  ].filter((w) => present(w.id));
 
   // Water Claim Consensus
   const waterWitnesses = [
     { id: "B", name: "Water Sensor", value: nodeB.last?.water ?? 0, state: nodeB.state },
     { id: "C", name: "ESP32-CAM", value: nodeC.last?.water ?? 0, state: nodeC.state },
     { id: "WEBCAM", name: "Webcam Vision", value: webcam.last?.water ?? 0, state: webcam.state },
-  ];
+  ].filter((w) => present(w.id));
 
   const hasConflict = Object.keys(conflicts).length > 0;
 

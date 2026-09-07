@@ -2088,6 +2088,28 @@ button {
     align-items: flex-start;
     gap: 12px;
   }
+  /* attack panel header stacks so title and target selector each get full width */
+  .attack-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .target-selector-wrapper {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .target-select {
+    flex: 1;
+  }
+  /* view headers with a right-side badge: stack instead of squeezing the title */
+  .view-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+.attack-header-title h4 {
+  white-space: nowrap;
 }
 /* metrics footer note (real measured-at line) */
 .metrics-footer-note {

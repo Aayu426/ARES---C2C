@@ -529,28 +529,39 @@ export function useStreamData() {
   );
 
   const explainIncident = useCallback(async (incidentId) => {
+    if (!incidentId) {
+      setAiExplanation({
+        text: "No incident to explain yet. Trigger an attack (SUPPRESS, SPOOF, REPLAY, DRIFT) and an incident will appear here for the AI to reconstruct.",
+        source: "template",
+        incidentId: null,
+      });
+      return;
+    }
     setIsExplaining(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/explain/${incidentId || "i-17"}`);
+      const res = await fetch(`${API_BASE_URL}/explain/${incidentId}`);
       if (res.ok) {
         const data = await res.json();
         setAiExplanation({
           text: data.text,
-          source: data.source || "gemini",
-          incidentId: incidentId || "i-17",
+          source: data.source || "template",
+          incidentId,
         });
-        setIsExplaining(false);
-        return;
+      } else {
+        setAiExplanation({
+          text: `No explanation available for incident ${incidentId} (it may have aged out of the log). Trigger a fresh attack and explain the newest incident.`,
+          source: "template",
+          incidentId,
+        });
       }
     } catch {
-      setTimeout(() => {
-        setAiExplanation({
-          text: "Node A's motion sensor reported 0 (clear), but independent witnesses Node C (ESP32-CAM) and Webcam both corroborated motion with >90% confidence. Upon adaptive integrity challenge, Node A's firmware SHA-256 fingerprint failed to match known-good signature, proving Node A authentic but tampered. Node A was isolated into Shadow mode and the alarm was sounded based on corroborated consensus.",
-          source: "gemini (advisory)",
-          incidentId: incidentId || "i-17",
-        });
-        setIsExplaining(false);
-      }, 500);
+      setAiExplanation({
+        text: "The explanation service is unavailable. The gateway reconstructs each incident in plain language from the logged evidence — advisory only, it never decides.",
+        source: "template",
+        incidentId,
+      });
+    } finally {
+      setIsExplaining(false);
     }
   }, []);
 

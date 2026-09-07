@@ -99,6 +99,7 @@ function App() {
           <AttacksView
             onTriggerAttack={triggerAttack}
             isConnected={isConnected}
+            nodes={nodes}
           />
         );
 

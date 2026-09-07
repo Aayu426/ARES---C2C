@@ -61,7 +61,7 @@ function ExplainIncidentModal({
             </p>
             <button
               className="explain-btn"
-              onClick={() => onTriggerExplain(latestIncidentId || "i-17")}
+              onClick={() => onTriggerExplain(latestIncidentId)}
             >
               <Sparkles size={16} />
               <span>EXPLAIN LATEST INCIDENT WITH GEMINI</span>

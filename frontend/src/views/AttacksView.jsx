@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Zap, ShieldAlert, Smartphone } from "lucide-react";
 import AttackPanel from "../components/AttackPanel";
 
-function AttacksView({ onTriggerAttack, isConnected }) {
+function AttacksView({ onTriggerAttack, isConnected, nodes }) {
   return (
     <div className="view-container attacks-view-container">
       <div className="view-header">
@@ -24,6 +24,7 @@ function AttacksView({ onTriggerAttack, isConnected }) {
         <AttackPanel
           onTriggerAttack={onTriggerAttack}
           isConnected={isConnected}
+          nodes={nodes}
         />
       </div>
     </div>
