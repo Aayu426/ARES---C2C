@@ -1,5 +1,5 @@
 :root {
-  font-family: 'IBM Plex Sans', Inter, system-ui, -apple-system, sans-serif;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
   color: #e8edf5;
   background: #080b10;
   font-synthesis: none;
@@ -1236,7 +1236,7 @@ button {
   font-size: 11px;
   color: #657181;
   letter-spacing: 0.04em;
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  font-family: monospace;
 }
 
 .vector-bars {
@@ -2118,7 +2118,7 @@ button {
   border-top: 1px solid #283747;
   font-size: 11px;
   color: #657181;
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  font-family: monospace;
   letter-spacing: 0.04em;
 }
 .metrics-footer-note code {
@@ -2143,7 +2143,7 @@ button {
   animation: rejectedFlash 0.5s ease;
 }
 .node-rejected-banner .rejected-label {
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  font-family: monospace;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
@@ -2151,7 +2151,7 @@ button {
   margin-left: auto;
   display: flex;
   gap: 8px;
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  font-family: monospace;
   color: #8b949e;
 }
 .node-rejected-banner .rejected-values s {
