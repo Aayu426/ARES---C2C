@@ -2089,3 +2089,19 @@ button {
     gap: 12px;
   }
 }
+/* metrics footer note (real measured-at line) */
+.metrics-footer-note {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #283747;
+  font-size: 11px;
+  color: #657181;
+  font-family: monospace;
+  letter-spacing: 0.04em;
+}
+.metrics-footer-note code {
+  color: #8fb8dd;
+  background: #141c28;
+  padding: 1px 5px;
+  border-radius: 4px;
+}

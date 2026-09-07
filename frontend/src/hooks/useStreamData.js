@@ -81,10 +81,13 @@ export function useStreamData() {
   const [conflicts, setConflicts] = useState({});
   const [activeChallenges, setActiveChallenges] = useState({});
   const [metrics, setMetrics] = useState({
-    medianLatencyMs: 142,
-    p95LatencyMs: 280,
+    medianLatency: "—",
+    p95Latency: "—",
     catchRatePct: 100,
-    falsePositiveRate: "0.0 / hr",
+    falsePositiveRate: "—",
+    trials: 20,
+    measuredAt: null,
+    live: false,
   });
   const [aiExplanation, setAiExplanation] = useState(null);
   const [isExplaining, setIsExplaining] = useState(false);
@@ -317,6 +320,35 @@ export function useStreamData() {
     reconnectInterval: 2500,
     enabled: true,
   });
+
+  // Pull the real measured benchmark from the gateway (gateway/metrics.json via /metrics).
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMetrics() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/metrics`);
+        const m = await res.json();
+        if (cancelled || !m || !m.available) return;
+        const dl = m.detection_latency_s || {};
+        const fmt = (s) => (s == null ? "—" : `${Number(s).toFixed(2)} s`);
+        setMetrics({
+          medianLatency: fmt(dl.to_suspicious_median),
+          p95Latency: fmt(dl.to_shadow_p95),
+          catchRatePct: m.catch_rate != null ? Math.round(m.catch_rate * 100) : 100,
+          falsePositiveRate: `${m.false_positive_rate_per_hour ?? 0} / hr`,
+          trials: m.trials ?? 20,
+          measuredAt: m.measured_at || null,
+          live: true,
+        });
+      } catch {
+        /* keep the placeholder if the gateway or metrics.json is unavailable */
+      }
+    }
+    loadMetrics();
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected]);
 
   const clearReplayTimeouts = useCallback(() => {
     replayTimeoutsRef.current.forEach((t) => clearTimeout(t));
