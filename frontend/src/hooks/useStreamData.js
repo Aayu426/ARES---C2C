@@ -82,6 +82,37 @@ export function useStreamData() {
     const nowStr = new Date().toLocaleTimeString("en-US", { hour12: false });
 
     switch (eventType) {
+      case "snapshot": {
+        // Sent once on WS connect — seed live node state so a reload shows the CURRENT
+        // readings (e.g. water already WET) instead of waiting for the next change.
+        if (event.nodes) {
+          setNodes((prev) => {
+            const updated = { ...prev };
+            for (const [id, snap] of Object.entries(event.nodes)) {
+              if (snap.last_seen == null) continue; // skip nodes that never reported
+              const current = updated[id] || {
+                node_id: id, name: `Node ${id}`, hardware: "Edge Device",
+                sensorType: "sensor", sensorLabel: "Sensor", isSimulated: false,
+              };
+              updated[id] = {
+                ...current,
+                state: snap.state ?? current.state,
+                identity: snap.identity ?? current.identity ?? 100,
+                integrity: snap.integrity ?? current.integrity ?? 100,
+                consistency: snap.consistency ?? current.consistency ?? 100,
+                overall: snap.overall ?? current.overall ?? 100,
+                recovery: snap.recovery ?? current.recovery ?? null,
+                last: { ...(current.last || {}), ...(snap.last || {}) },
+              };
+            }
+            return updated;
+          });
+        }
+        if (event.alarm) setAlarm({ on: Boolean(event.alarm.on), reason: event.alarm.reason || "" });
+        if (event.claims) setClaims(event.claims);
+        break;
+      }
+
       case "node_update": {
         setNodes((prev) => {
           const updated = { ...prev };
