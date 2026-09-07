@@ -127,6 +127,34 @@ function NodeDetailInspector({ node, allNodes = {}, onSelectNode }) {
       break;
     }
 
+    case "sensor": {
+      const motionVal = node.last?.motion;
+      const waterVal = node.last?.water;
+      const isMotion = motionVal === 1 || motionVal === true;
+      const isWater = waterVal === 1 || waterVal === true;
+      primaryReadingLabel = "PHYSICAL STATE";
+      primaryReadingVal = isWater
+        ? "WATER DETECTED"
+        : isMotion
+        ? "MOTION DETECTED"
+        : "ALL CLEAR";
+      primaryHighlight = isWater ? "text-blue" : isMotion ? "text-amber" : "text-green";
+      secondaryDetails = [
+        {
+          label: "MOTION (PIR)",
+          val: isMotion ? "DETECTED" : "CLEAR",
+          highlight: isMotion ? "text-amber" : "text-green",
+        },
+        {
+          label: "WATER",
+          val: isWater ? "DETECTED" : "DRY",
+          highlight: isWater ? "text-blue" : "text-green",
+        },
+        { label: "ROLE", val: "MOTION + WATER WITNESS" },
+      ];
+      break;
+    }
+
     default: {
       primaryReadingLabel = "INDUSTRIAL TELEMETRY";
       primaryReadingVal = "NORMAL";
@@ -224,7 +252,7 @@ function NodeDetailInspector({ node, allNodes = {}, onSelectNode }) {
           {secondaryDetails.map((d, i) => (
             <div className="secondary-reading-row" key={i}>
               <span>{d.label}</span>
-              <strong>{d.val}</strong>
+              <strong className={d.highlight || ""}>{d.val}</strong>
             </div>
           ))}
         </div>
