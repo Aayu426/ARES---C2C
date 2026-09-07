@@ -16,6 +16,7 @@ from .engine import Engine, load_keys
 from .explain import explain
 from .ai import answer_question
 from . import tts
+from .notify import n8n_forwarder
 import json, os
 from .store import Store
 from .transports.base import Transport
@@ -68,8 +69,10 @@ def create_app(mode: str = "sim", ports: list[str] | None = None, keys_path: str
         await engine.start()
         if mqtt_ingress is not None:
             await mqtt_ingress.start(asyncio.get_running_loop())
+        notify_task = asyncio.create_task(n8n_forwarder(bus))
         print(f"[ares] gateway up in {mode} mode")
         yield
+        notify_task.cancel()
         if mqtt_ingress is not None:
             await mqtt_ingress.stop()
         await engine.stop()

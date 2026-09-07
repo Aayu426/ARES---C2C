@@ -227,7 +227,7 @@ class ChallengeEngine:
                     summary = (f"SLEEPER COMPROMISE: {p.node_id} firmware fingerprint tampered while its data stayed "
                                f"nominal - caught by attestation, not by data anomaly")
                     self.engine.bus.publish({"e": "sleeper_detected", "node_id": p.node_id, "detail": detail})
-                    self.engine.bus.publish({"e": "incident", "id": slp_id, "claim": "integrity", "summary": summary})
+                    self.engine.bus.publish({"e": "incident", "id": slp_id, "node_id": p.node_id, "claim": "integrity", "summary": summary})
                     self.engine.store.add_incident(slp_id, "integrity", summary,
                                                    {"detail": detail, "silent": True, "data_state": "nominal"})
             else:
