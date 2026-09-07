@@ -311,6 +311,107 @@ export function useStreamData() {
         break;
       }
 
+      case "identity_failure": {
+        // spoof / forged frame (serial or MQTT). Show the value the attacker TRIED to
+        // push as a rejected ghost on the node card; the real reading is untouched.
+        const attempted = event.attempted || {};
+        const attackerSrc = event.source && event.source.includes("mqtt") ? "network (MQTT)" : "wire";
+        if (Object.keys(attempted).length) {
+          const rejectedNode = event.node_id;
+          setNodes((prev) => {
+            const cur = prev[rejectedNode];
+            if (!cur) return prev;
+            return {
+              ...prev,
+              [rejectedNode]: {
+                ...cur,
+                rejected: { values: attempted, source: event.source, at: Date.now() },
+              },
+            };
+          });
+          // the ghost is a momentary "attacker tried this" flash; clear it after 6 s
+          setTimeout(() => {
+            setNodes((prev) => {
+              const cur = prev[rejectedNode];
+              if (!cur || !cur.rejected || Date.now() - cur.rejected.at < 5800) return prev;
+              return { ...prev, [rejectedNode]: { ...cur, rejected: null } };
+            });
+          }, 6000);
+        }
+        setEvents((prev) => {
+          // collapse a burst of forged frames into one line with a ×N counter
+          const first = prev[0];
+          if (first && first.type === "IDENTITY_FAILURE" && first.node_id === event.node_id) {
+            const count = (first.count || 1) + 1;
+            return [
+              { ...first, count, timestamp: nowStr,
+                message: `Forged frames refused on Node ${event.node_id} (${attackerSrc}) ×${count}: invalid signature. Attempted ${JSON.stringify(attempted)} — real reading preserved.` },
+              ...prev.slice(1),
+            ];
+          }
+          return [
+            { id: `idf-${Date.now()}-${Math.random()}`, type: "IDENTITY_FAILURE", node_id: event.node_id,
+              timestamp: nowStr, count: 1,
+              message: `Forged frame rejected on Node ${event.node_id} (${attackerSrc}): ${event.detail || "invalid signature"}. Attempted ${JSON.stringify(attempted)} — refused, real reading preserved.`,
+              raw: event },
+            ...prev.slice(0, 99),
+          ];
+        });
+        break;
+      }
+
+      case "replay_rejected": {
+        setEvents((prev) => {
+          const first = prev[0];
+          if (first && first.type === "REPLAY_REJECTED" && first.node_id === event.node_id) {
+            const count = (first.count || 1) + 1;
+            return [
+              { ...first, count, timestamp: nowStr,
+                message: `Replay blocked on Node ${event.node_id} ×${count}: ${event.detail || `sequence ${event.seq} already seen`}.` },
+              ...prev.slice(1),
+            ];
+          }
+          return [
+            { id: `rep-${Date.now()}-${Math.random()}`, type: "REPLAY_REJECTED", node_id: event.node_id,
+              timestamp: nowStr, count: 1,
+              message: `Replay blocked on Node ${event.node_id}: ${event.detail || `sequence ${event.seq} already seen`}.`,
+              raw: event },
+            ...prev.slice(0, 99),
+          ];
+        });
+        break;
+      }
+
+      case "drift_detected": {
+        setEvents((prev) => [
+          {
+            id: `drf-${Date.now()}-${Math.random()}`,
+            type: "DRIFT_DETECTED",
+            node_id: event.node_id,
+            timestamp: nowStr,
+            message: `Slow-deception drift caught on Node ${event.node_id} (${event.claim}): ${event.detail || "long-term drift from baseline"}.`,
+            raw: event,
+          },
+          ...prev.slice(0, 99),
+        ]);
+        break;
+      }
+
+      case "escalation": {
+        setEvents((prev) => [
+          {
+            id: `esc-${Date.now()}-${Math.random()}`,
+            type: "ESCALATION",
+            node_id: event.node_id || null,
+            timestamp: nowStr,
+            message: `Escalated to human: ${event.reason || "verified but isolated — no automatic action"}.`,
+            raw: event,
+          },
+          ...prev.slice(0, 99),
+        ]);
+        break;
+      }
+
       default:
         break;
     }

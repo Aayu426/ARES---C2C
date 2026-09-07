@@ -212,6 +212,21 @@ function NodeCard({ sensorType, node }) {
         </div>
       </div>
 
+      {/* Rejected forged reading (spoof / MQTT): the value the attacker TRIED to push */}
+      {node.rejected && node.rejected.values && (
+        <div className="node-rejected-banner">
+          <EyeOff size={13} />
+          <span className="rejected-label">
+            FORGED{node.rejected.source && node.rejected.source.includes("mqtt") ? " · NETWORK" : ""} — REFUSED
+          </span>
+          <span className="rejected-values">
+            {Object.entries(node.rejected.values).map(([k, v]) => (
+              <s key={k}>{k}={String(v)}</s>
+            ))}
+          </span>
+        </div>
+      )}
+
       {/* Causal Explanation reason banner */}
       {node.lastReason && (
         <div className="node-reason-banner">

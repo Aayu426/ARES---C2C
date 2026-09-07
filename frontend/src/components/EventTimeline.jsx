@@ -51,6 +51,31 @@ function getEventMeta(event) {
         icon: <CheckCircle2 size={15} />,
         label: "CLAIM CONFIRMED",
       };
+    case "IDENTITY_FAILURE":
+      return {
+        icon: <ShieldAlert size={15} />,
+        label: "FORGED FRAME REFUSED",
+      };
+    case "REPLAY_REJECTED":
+      return {
+        icon: <ShieldAlert size={15} />,
+        label: "REPLAY BLOCKED",
+      };
+    case "DRIFT_DETECTED":
+      return {
+        icon: <AlertTriangle size={15} />,
+        label: "SLOW DRIFT CAUGHT",
+      };
+    case "ESCALATION":
+      return {
+        icon: <AlertTriangle size={15} />,
+        label: "ESCALATED TO HUMAN",
+      };
+    case "CONFLICT":
+      return {
+        icon: <AlertTriangle size={15} />,
+        label: "CONSENSUS CONFLICT",
+      };
     default:
       return {
         icon: <Activity size={15} />,

@@ -2105,3 +2105,38 @@ button {
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+/* rejected forged reading on a node card (spoof / MQTT ghost) */
+.node-rejected-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(224, 108, 117, 0.12);
+  border: 1px solid rgba(224, 108, 117, 0.4);
+  color: #e06c75;
+  font-size: 11px;
+  animation: rejectedFlash 0.5s ease;
+}
+.node-rejected-banner .rejected-label {
+  font-family: monospace;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.node-rejected-banner .rejected-values {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  font-family: monospace;
+  color: #8b949e;
+}
+.node-rejected-banner .rejected-values s {
+  text-decoration: line-through;
+  text-decoration-color: #e06c75;
+}
+@keyframes rejectedFlash {
+  from { background: rgba(224, 108, 117, 0.35); }
+  to   { background: rgba(224, 108, 117, 0.12); }
+}
