@@ -46,6 +46,11 @@ async def n8n_forwarder(bus) -> None:
             ev = await q.get()
             if ev.get("e") != "incident":
                 continue
+            # forward only real security incidents (attack / replay / physics / drift / sleeper),
+            # not routine consensus confirmations (id prefix "i-")
+            iid = str(ev.get("id") or "")
+            if not iid.startswith(("atk-", "rep-", "phy-", "drf-", "slp-")):
+                continue
             url = os.environ.get("N8N_WEBHOOK_URL")
             if not url:
                 continue
