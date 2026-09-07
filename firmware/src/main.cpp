@@ -67,7 +67,7 @@ static void computeFirmwareFingerprint() {
 }
 
 // ---------------------------------------------------------------- attack state
-enum Mode { HONEST, SUPPRESS, INJECT, DRIFT };
+enum Mode { HONEST, SUPPRESS, SUPPRESS_MOTION, SUPPRESS_WATER, INJECT, DRIFT };
 static Mode g_mode = HONEST;
 static float g_injectTemp = 80.0f;
 static float g_drift = 0.0f;
@@ -144,6 +144,8 @@ static void sendTelemetry() {
 
 #ifdef MALICIOUS
   if (g_mode == SUPPRESS) { if (motion >= 0) motion = 0; if (water >= 0) water = 0; }
+  if (g_mode == SUPPRESS_MOTION && motion >= 0) motion = 0;
+  if (g_mode == SUPPRESS_WATER && water >= 0) water = 0;
   if (g_mode == INJECT && hasTemp) temp = g_injectTemp;
   if (g_mode == DRIFT && hasTemp) { g_drift += 0.1f; temp += g_drift; }
 #endif
@@ -189,6 +191,8 @@ static void handleLine(const char* line) {
 #ifdef MALICIOUS
     const char* mode = doc["mode"] | "restore";
     if (strcmp(mode, "suppress") == 0) g_mode = SUPPRESS;
+    else if (strcmp(mode, "suppress_motion") == 0) g_mode = SUPPRESS_MOTION;
+    else if (strcmp(mode, "suppress_water") == 0) g_mode = SUPPRESS_WATER;
     else if (strcmp(mode, "inject") == 0) { g_mode = INJECT; g_injectTemp = doc["temp"] | 80.0f; }
     else if (strcmp(mode, "drift") == 0) { g_mode = DRIFT; g_drift = 0; }
     else { g_mode = HONEST; g_drift = 0; }

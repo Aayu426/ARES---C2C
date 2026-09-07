@@ -419,7 +419,7 @@ class Engine:
 
     async def attack(self, type_: str, target: str, temp: float | None = None) -> str:
         """Judge attack panel entry point. `type_` per CONTRACTS.md 8.1."""
-        mapping = {"suppress_motion": ("suppress", "A"), "suppress_water": ("suppress", "B"),
+        mapping = {"suppress_motion": ("suppress_motion", "A"), "suppress_water": ("suppress_water", "A"),
                    "spoof": ("spoof", target or "A"), "replay": ("replay", target or "A"),
                    "inject": ("inject", "A"), "drift": ("drift", "A"), "restore": ("restore", target or "A")}
         if type_ not in mapping:

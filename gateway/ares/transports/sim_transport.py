@@ -131,7 +131,7 @@ class SimTransport(Transport):
             msg: dict = {"t": "tel", "node_id": node.node_id, "seq": node.seq, "ts": ts}
             if "motion" in node.claims:
                 motion = 1 if self.env["person"] else 0
-                if node.mode == "suppress":
+                if node.mode in ("suppress", "suppress_motion"):
                     motion = 0
                 msg["motion"] = motion
             if "temp" in node.claims:
@@ -144,7 +144,7 @@ class SimTransport(Transport):
                 msg["temp"] = round(temp, 2)
             if "water" in node.claims:
                 water = 1 if self.env["water"] else 0
-                if node.mode == "suppress":
+                if node.mode in ("suppress", "suppress_water"):
                     water = 0
                 msg["water"] = water
             msg["hmac"] = sign(key, telemetry_canonical(msg))
