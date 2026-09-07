@@ -104,20 +104,35 @@ function OverviewView({
               </div>
 
               <div className="summary-card-body">
-                <div className="summary-reading-row">
-                  <span>MEASUREMENT:</span>
-                  <strong>
-                    {node.last?.motion !== undefined && node.last?.water !== undefined
-                      ? `${node.last.motion ? "MOTION" : "CLEAR"} · ${node.last.water ? "WET" : "DRY"}`
-                      : node.last?.motion !== undefined
-                      ? node.last.motion ? "MOTION (1)" : "CLEAR (0)"
-                      : node.last?.water !== undefined
-                      ? node.last.water ? "WET (1)" : "DRY (0)"
-                      : node.last?.temp !== undefined
-                      ? `${node.last.temp.toFixed(1)}°C`
-                      : "NOMINAL"}
-                  </strong>
-                </div>
+                {node.last?.motion !== undefined && node.last?.water !== undefined ? (
+                  <>
+                    <div className="summary-reading-row">
+                      <span>{node.sensorType === "camera" ? "PERSON (VISION):" : "MOTION (PIR):"}</span>
+                      <strong className={node.last.motion ? "text-amber" : "text-green"}>
+                        {node.last.motion ? "DETECTED" : "CLEAR"}
+                      </strong>
+                    </div>
+                    <div className="summary-reading-row">
+                      <span>{node.sensorType === "camera" ? "WATER (VISION):" : "WATER:"}</span>
+                      <strong className={node.last.water ? "text-blue" : "text-green"}>
+                        {node.last.water ? "DETECTED" : "DRY"}
+                      </strong>
+                    </div>
+                  </>
+                ) : (
+                  <div className="summary-reading-row">
+                    <span>MEASUREMENT:</span>
+                    <strong>
+                      {node.last?.motion !== undefined
+                        ? node.last.motion ? "MOTION DETECTED" : "CLEAR"
+                        : node.last?.water !== undefined
+                        ? node.last.water ? "WATER DETECTED" : "DRY"
+                        : node.last?.temp !== undefined
+                        ? `${node.last.temp.toFixed(1)}°C`
+                        : "NOMINAL"}
+                    </strong>
+                  </div>
+                )}
 
                 <div className="summary-trust-row">
                   <span>OVERALL TRUST:</span>
