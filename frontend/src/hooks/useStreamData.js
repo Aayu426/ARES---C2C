@@ -102,6 +102,10 @@ export function useStreamData() {
                 consistency: snap.consistency ?? current.consistency ?? 100,
                 overall: snap.overall ?? current.overall ?? 100,
                 recovery: snap.recovery ?? current.recovery ?? null,
+                fwStatus: snap.fw_status ?? current.fwStatus ?? "VERIFIED",
+                fwDetail: snap.fw_detail ?? current.fwDetail,
+                silentCompromise: snap.silent_compromise ?? current.silentCompromise ?? false,
+                lastAttested: snap.last_attested ?? current.lastAttested ?? null,
                 last: { ...(current.last || {}), ...(snap.last || {}) },
               };
             }
@@ -147,6 +151,10 @@ export function useStreamData() {
             overall,
             recovery: event.recovery !== undefined ? event.recovery : current.recovery,
             trustHistory: newHistory,
+            fwStatus: event.fw_status ?? current.fwStatus ?? "VERIFIED",
+            fwDetail: event.fw_detail ?? current.fwDetail,
+            silentCompromise: event.silent_compromise ?? current.silentCompromise ?? false,
+            lastAttested: event.last_attested ?? current.lastAttested ?? null,
             last: {
               ...(current.last || {}),
               ...(event.last || {}),

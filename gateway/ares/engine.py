@@ -65,6 +65,11 @@ class NodeRecord:
         self.good_this_tick = 0
         self.bad_this_tick = 0
         self.last_reason = ""
+        # firmware attestation (the sleeper-compromise layer)
+        self.fw_ok = True                          # last firmware-fingerprint verdict
+        self.fw_detail = "not yet attested"
+        self.silent_compromise = False             # firmware tampered while data stayed nominal
+        self.last_attested: float | None = None
 
     @property
     def online(self) -> bool:
@@ -78,6 +83,9 @@ class NodeRecord:
             "consistency": round(t.consistency), "overall": t.overall,
             "recovery": t.recovery_label, "last": dict(self.last),
             "last_seen": self.last_seen, "online": self.online, "reason": self.last_reason,
+            "fw_status": "VERIFIED" if self.fw_ok else "COMPROMISED",
+            "fw_detail": self.fw_detail, "silent_compromise": self.silent_compromise,
+            "last_attested": self.last_attested,
         }
 
 
@@ -421,7 +429,8 @@ class Engine:
         """Judge attack panel entry point. `type_` per CONTRACTS.md 8.1."""
         mapping = {"suppress_motion": ("suppress_motion", "A"), "suppress_water": ("suppress_water", "A"),
                    "spoof": ("spoof", target or "A"), "replay": ("replay", target or "A"),
-                   "inject": ("inject", "A"), "drift": ("drift", "A"), "restore": ("restore", target or "A")}
+                   "inject": ("inject", "A"), "drift": ("drift", "A"), "restore": ("restore", target or "A"),
+                   "sleeper": ("sleeper", target or "A")}
         if type_ not in mapping:
             return f"unknown attack {type_}"
         mode, node_id = mapping[type_]

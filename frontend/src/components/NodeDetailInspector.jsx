@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import TrustVectorPanel from "./TrustVectorPanel";
+import FirmwareAttestationPanel from "./FirmwareAttestationPanel";
 import TrustHistoryChart from "./TrustHistoryChart";
 
 function getSensorIcon(sensorType) {
@@ -257,6 +258,9 @@ function NodeDetailInspector({ node, allNodes = {}, onSelectNode }) {
           ))}
         </div>
       </div>
+
+      {/* Firmware Attestation — the sleeper-compromise layer */}
+      <FirmwareAttestationPanel node={node} />
 
       {/* Trust Vector Decomposition */}
       <TrustVectorPanel node={node} />

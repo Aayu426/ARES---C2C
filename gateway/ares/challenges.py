@@ -21,6 +21,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .engine import Engine, NodeRecord
 
 CHALLENGE_TIMEOUT = 2.0
+ATTEST_INTERVAL = 12.0          # periodic firmware attestation of every healthy node (sleeper-compromise catch)
 SUSPICIOUS_RETRY = 3.0
 SHADOW_RETRY = 10.0
 RECOVERY_RETRY = 5.0
@@ -58,13 +59,16 @@ class Pending:
 class ChallengeEngine:
     def __init__(self, engine: "Engine", known_fw: dict[str, str],
                  suspicious_retry: float = SUSPICIOUS_RETRY, shadow_retry: float = SHADOW_RETRY,
-                 recovery_retry: float = RECOVERY_RETRY, timeout: float = CHALLENGE_TIMEOUT) -> None:
+                 recovery_retry: float = RECOVERY_RETRY, timeout: float = CHALLENGE_TIMEOUT,
+                 attest_interval: float = ATTEST_INTERVAL) -> None:
         self.engine = engine
         self.known_fw = known_fw
         self.suspicious_retry = suspicious_retry
         self.shadow_retry = shadow_retry
         self.recovery_retry = recovery_retry
         self.timeout = timeout
+        self.attest_interval = attest_interval
+        self.last_attest: dict[str, float] = {}
         self.pending: dict[str, Pending] = {}
         self.last_issued: dict[str, float] = {}
         self.last_type: dict[str, str] = {}
@@ -118,8 +122,26 @@ class ChallengeEngine:
             return "identity", "isolated but verified: alternating re-checks"
         return "integrity", "re-checking firmware"
 
+    async def _attest_sweep(self, now: float) -> None:
+        """Periodic firmware attestation of TRUSTED nodes. This is the layer that catches a
+        SLEEPER / dormant compromise: a node whose data looks perfectly normal but whose
+        firmware was tampered to await a later coordinated strike. Data-anomaly and consensus
+        detection never flag such a node, so we attest EVERY healthy node on a fixed cadence and
+        compare its fingerprint to the known-good baseline. The firmware fingerprint is the one
+        parameter common to every sensor and sensitive to compromise regardless of its readings."""
+        for node in self.engine.nodes.values():
+            if node.trust.state != "TRUSTED" or node.last_seen is None:
+                continue
+            if any(p.node_id == node.node_id for p in self.pending.values()):
+                continue
+            if now - self.last_attest.get(node.node_id, 0) < self.attest_interval:
+                continue
+            self.last_attest[node.node_id] = now
+            await self.issue(node, "integrity", "scheduled firmware attestation sweep")
+
     async def _schedule(self) -> None:
         now = time.time()
+        await self._attest_sweep(now)
         for node in self.engine.nodes.values():
             if any(p.node_id == node.node_id for p in self.pending.values()):
                 continue
@@ -191,6 +213,25 @@ class ChallengeEngine:
             t.identity_failed()
         else:
             t.integrity_failed()
+        # firmware attestation bookkeeping + the silent/sleeper-compromise verdict
+        if p.type == "integrity":
+            node.last_attested = time.time()
+            node.fw_ok = passed
+            node.fw_detail = detail
+            if not passed:
+                data_normal = (t.identity >= 99 and t.consistency >= 99
+                               and not any(n > 0 for n in node.disagree_cycles.values()))
+                node.silent_compromise = data_normal
+                if data_normal:
+                    slp_id = f"slp-{uuid.uuid4().hex[:6]}"
+                    summary = (f"SLEEPER COMPROMISE: {p.node_id} firmware fingerprint tampered while its data stayed "
+                               f"nominal - caught by attestation, not by data anomaly")
+                    self.engine.bus.publish({"e": "sleeper_detected", "node_id": p.node_id, "detail": detail})
+                    self.engine.bus.publish({"e": "incident", "id": slp_id, "claim": "integrity", "summary": summary})
+                    self.engine.store.add_incident(slp_id, "integrity", summary,
+                                                   {"detail": detail, "silent": True, "data_state": "nominal"})
+            else:
+                node.silent_compromise = False
         self.engine.store.close_challenge(cid, passed, detail)
         from .engine import LED_CODE  # restore the state LEDs after the challenge blink
         await self.engine.transport.send(p.node_id, {"t": "led", "code": LED_CODE.get(t.derive_state(), 0)})

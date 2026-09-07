@@ -8,6 +8,9 @@ The engine cannot tell a simulated witness from a real one. Attacks are applied 
   drift     - the node's temperature offset grows a little every interval
   spoof     - frames are signed with the wrong key (an impostor)
   replay    - an old frame is re-sent verbatim
+  sleeper   - DORMANT COMPROMISE: data stays honest and correctly signed, but the firmware
+              fingerprint is tampered. Invisible to data/consensus checks; only periodic
+              firmware attestation catches it.
   restore   - back to honest, honest fingerprint again
 """
 from __future__ import annotations
@@ -36,7 +39,7 @@ class VirtualNode:
         self.claims = claims          # which claims this node witnesses
         self.seq = 0
         self.boot = time.monotonic()
-        self.mode: str | None = None  # None (honest) | suppress | inject | drift | spoof | replay
+        self.mode: str | None = None  # None (honest) | suppress | inject | drift | spoof | replay | sleeper
         self.inject_temp = 80.0
         self.drift = 0.0
         self.last_frame: dict | None = None
